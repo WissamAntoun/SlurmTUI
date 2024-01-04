@@ -374,15 +374,15 @@ def get_rich_state(state: str):
     if state == "RUNNING":
         return "[green]Running[/green]"
     elif state == "PENDING":
-        return "[blue]Pending[blue]"
+        return "[cyan]Pending[cyan]"
     elif state == "COMPLETED":
-        return "[cyan]Completed[/cyan]"
+        return "[blue]Completed[/blue]"
     elif state == "FAILED":
         return "[bright_red]Failed[/bright_red]"
     elif state == "TIMEOUT":
-        return "[red]Timeout[/red]"
+        return "[bright_red]Timeout[/bright_red]"
     elif state == "CANCELLED":
-        return "[red]Cancelled[/red]"
+        return "[bright_red]Cancelled[/bright_red]"
     elif "To be Deleted" in state:
         actual_state = get_rich_state(state.replace("(To be Deleted)", "").strip())
         return f"{actual_state} [red](To be Deleted)[/red]"

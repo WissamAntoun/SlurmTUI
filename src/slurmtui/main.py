@@ -282,16 +282,8 @@ class SlurmTUI(App[SlurmTUIReturn]):
             )
             job_table.add_row(
                 str(v["job_id"]),
-                str(
-                    v["array_job_id"]["number"]
-                    if v["array_job_id"]["set"] == "true"
-                    else ""
-                ),
-                str(
-                    v["array_task_id"]["number"]
-                    if v["array_task_id"]["set"] == "true"
-                    else ""
-                ),
+                str(v["array_job_id"]["number"] if v["array_job_id"]["set"] else ""),
+                str(v["array_task_id"]["number"] if v["array_task_id"]["set"] else ""),
                 str(v["name"])[0:50],
                 str(v["job_resources"].get("nodes", ""))[0:50],
                 str(v["partition"]),
