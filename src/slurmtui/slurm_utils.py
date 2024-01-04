@@ -117,7 +117,7 @@ fake_squeue = """{
          "number": 0
        },
        "eligible_time": 1701982989,
-       "end_time": 1702343394,
+       "end_time": 1705313394,
        "excluded_nodes": "",
        "exit_code": {
          "set": true,

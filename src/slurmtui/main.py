@@ -280,6 +280,21 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 if k in self.jobs_to_be_deleted
                 else str(v["job_state"])
             )
+            time_remaining_string = ""
+            if v["end_time"]:
+                time_remaining = (
+                    datetime.datetime.fromtimestamp(v["end_time"])
+                    - datetime.datetime.now()
+                ) / datetime.timedelta(hours=1)
+                time_remaining_string = str(
+                    datetime.datetime.fromtimestamp(v["end_time"])
+                )
+
+                if time_remaining > 0:
+                    time_remaining_string += (
+                        " (in " + str(round(time_remaining, 1)) + " hrs)"
+                    )
+
             job_table.add_row(
                 str(v["job_id"]),
                 str(
@@ -296,9 +311,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
                         v["start_time"] if v["start_time"] else v["submit_time"]
                     )
                 ),
-                str(datetime.datetime.fromtimestamp(v["end_time"]))
-                if v["end_time"]
-                else "",
+                time_remaining_string,
                 get_rich_state(job_state),
                 str(v["state_reason"]) if v["state_reason"] != "None" else "",
                 str(v["account"]),
