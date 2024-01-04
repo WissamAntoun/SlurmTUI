@@ -237,6 +237,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 "Start/Sub. Time",
                 "End Time",
                 "State",
+                "State Reason",
                 "Account",
             )
             self.first_display = False
@@ -257,6 +258,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         if self.running_jobs_dict is None or len(self.running_jobs_dict) == 0:
             job_table.add_row(
                 "No jobs running",
+                "",
                 "",
                 "",
                 "",
@@ -290,16 +292,19 @@ class SlurmTUI(App[SlurmTUIReturn]):
                     if v["array_task_id"]["set"] == "true"
                     else ""
                 ),
-                str(v["name"]),
-                str(v["job_resources"]["nodes"]),
+                str(v["name"])[0:50],
+                str(v["job_resources"].get("nodes", ""))[0:50],
                 str(v["partition"]),
                 str(
                     datetime.datetime.fromtimestamp(
                         v["start_time"] if v["start_time"] else v["submit_time"]
                     )
                 ),
-                str(datetime.datetime.fromtimestamp(v["end_time"])),
+                str(datetime.datetime.fromtimestamp(v["end_time"]))
+                if v["end_time"]
+                else "",
                 get_rich_state(job_state),
+                str(v["state_reason"]) if v["state_reason"] != "None" else "",
                 str(v["account"]),
                 key=str(k),
             )

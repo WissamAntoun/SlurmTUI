@@ -357,7 +357,7 @@ def get_running_jobs(
     else:
         try:
             running_jobs = subprocess.check_output(
-                ["squeue", "-u", "$USER", "--json"], stderr=subprocess.DEVNULL
+                ["squeue", "-u", os.getenv("USER"), "--json"], stderr=subprocess.DEVNULL
             ).decode("utf-8")
         except subprocess.CalledProcessError as e:
             console.print(no_jobs_msg)
@@ -375,6 +375,14 @@ def get_rich_state(state: str):
         return "[green]Running[/green]"
     elif state == "PENDING":
         return "[blue]Pending[blue]"
+    elif state == "COMPLETED":
+        return "[cyan]Completed[/cyan]"
+    elif state == "FAILED":
+        return "[bright_red]Failed[/bright_red]"
+    elif state == "TIMEOUT":
+        return "[red]Timeout[/red]"
+    elif state == "CANCELLED":
+        return "[red]Cancelled[/red]"
     elif "To be Deleted" in state:
         actual_state = get_rich_state(state.replace("(To be Deleted)", "").strip())
         return f"{actual_state} [red](To be Deleted)[/red]"
