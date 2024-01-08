@@ -16,7 +16,10 @@ setup(
     author="Wissam Antoun",
     author_email="wissam.antoun@gmail.com",
     description="A simple Terminal UI (TUI) for Slurm",
-    long_description=get_long_description(),
+    long_description=get_long_description().replace(
+        "./img/screenshot.png",
+        "https://raw.githubusercontent.com/WissamAntoun/SlurmTUI/main/img/screenshot.png",
+    ),
     url="https://github.com/WissamAntoun/SlurmTUI",
     long_description_content_type="text/markdown",
     packages=find_packages("src"),
