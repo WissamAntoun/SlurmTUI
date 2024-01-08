@@ -12,11 +12,12 @@ def get_long_description():
 
 setup(
     name="slurmtui",
-    version="0.1.0",
+    version="0.1.1",
     author="Wissam Antoun",
     author_email="wissam.antoun@gmail.com",
     description="A simple Terminal UI (TUI) for Slurm",
     long_description=get_long_description(),
+    url="https://github.com/WissamAntoun/SlurmTUI",
     long_description_content_type="text/markdown",
     packages=find_packages("src"),
     package_dir={"": "src"},

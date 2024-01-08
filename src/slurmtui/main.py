@@ -29,7 +29,7 @@ from textual.widgets import (
 from .slurm_utils import MOCK, get_rich_state, get_running_jobs
 
 MOCK = os.getenv("MOCK", "False").lower() == "true"
-UPDATE_INTERVAL = int(os.getenv("UPDATE_INTERVAL", "5"))
+UPDATE_INTERVAL = int(os.getenv("UPDATE_INTERVAL", "10"))
 TAIL_LINES = int(os.getenv("TAIL_LINES", "-1"))
 
 
