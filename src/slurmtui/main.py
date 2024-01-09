@@ -435,9 +435,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
             self.jobs_to_be_deleted.append(selected_job["Job_Id"])
         if not self.mock:
             if delete_array:
-                os.system(f"slurmdel --array {selected_job['array_id']}")
+                os.system(f"scancel --array {selected_job['array_id']}")
             else:
-                os.system(f"slurmdel {selected_job['Job_Id']}")
+                os.system(f"scancel {selected_job['Job_Id']}")
 
     def _check_job_is_array(self, selected_job: Dict[str, Any]) -> bool:
         """Check if the selected job is an array job."""
