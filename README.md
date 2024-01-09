@@ -15,7 +15,7 @@ pip install slurmtui
 Just run `slurmtui` in your terminal.
 
 Environment variables:
-- `UPDATE_INTERVAL`: Refresh rate in seconds (default: 5)
+- `UPDATE_INTERVAL`: Refresh rate in seconds (default: 10)
 - `TAIL_LINES`: Number of lines to show in the tail (default: -1, show all)
 
 
