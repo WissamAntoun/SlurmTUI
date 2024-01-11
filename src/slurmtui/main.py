@@ -426,22 +426,24 @@ class SlurmTUI(App[SlurmTUIReturn]):
         if delete_array:
             self.jobs_to_be_deleted.extend(
                 [
-                    job["Job_Id"]
+                    job["job_id"]
                     for job in self.running_jobs_dict.values()
                     if job["array_id"] == selected_job["array_id"]
                 ]
             )
         else:
-            self.jobs_to_be_deleted.append(selected_job["Job_Id"])
+            self.jobs_to_be_deleted.append(selected_job["job_id"])
         if not self.mock:
             if delete_array:
                 os.system(f"scancel --array {selected_job['array_id']}")
             else:
-                os.system(f"scancel {selected_job['Job_Id']}")
+                os.system(f"scancel {selected_job['job_id']}")
 
     def _check_job_is_array(self, selected_job: Dict[str, Any]) -> bool:
         """Check if the selected job is an array job."""
-        if selected_job["array_index"] > 1:
+        if selected_job["array_job_id"]["number"] == 0:
+            return False
+        elif selected_job["array_job_id"] > 1:
             return True
 
         for job in self.running_jobs_dict.values():
@@ -465,7 +467,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             job_table.cursor_coordinate.row
         ]
 
-        if selected_job["Job_Id"] in self.jobs_to_be_deleted:
+        if selected_job["job_id"] in self.jobs_to_be_deleted:
             self.push_screen(
                 MessageScreen("Job is already in the queue to be deleted!!")
             )
