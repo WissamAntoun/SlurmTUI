@@ -428,7 +428,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 [
                     job["job_id"]
                     for job in self.running_jobs_dict.values()
-                    if job["array_id"] == selected_job["array_id"]
+                    if job["array_job_id"]["number"] == selected_job["array_job_id"]["number"]
                 ]
             )
         else:
@@ -441,14 +441,11 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     def _check_job_is_array(self, selected_job: Dict[str, Any]) -> bool:
         """Check if the selected job is an array job."""
+
         if selected_job["array_job_id"]["number"] == 0:
             return False
-        elif selected_job["array_job_id"] > 1:
+        elif selected_job["array_job_id"]["number"] > 1:
             return True
-
-        for job in self.running_jobs_dict.values():
-            if job["array_id"] == selected_job["array_id"] and job["array_index"] > 1:
-                return True
 
         return False
 
