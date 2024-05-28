@@ -304,7 +304,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 ),
                 str(v["array_task_id"]["number"] if v["array_task_id"]["set"] else ""),
                 str(v["name"])[0:50],
-                str(v["job_resources"].get("nodes", ""))[0:50],
+                str(v["job_resources"].get("nodes", ""))[0:25],
                 str(v["partition"]),
                 str(
                     datetime.datetime.fromtimestamp(
