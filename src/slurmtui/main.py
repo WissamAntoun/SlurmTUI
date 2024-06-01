@@ -196,6 +196,12 @@ class SlurmTUIReturn:
 class SlurmTUI(App[SlurmTUIReturn]):
     """A Textual UI for slurm jobs."""
 
+    DEFAULT_CSS = """
+        DataTable {
+            scrollbar-gutter: stable;
+        }
+    """
+
     CSS_PATH = "css/slurmtui.css"
 
     BINDINGS = [
@@ -229,11 +235,11 @@ class SlurmTUI(App[SlurmTUIReturn]):
             job_table.cursor_type = "row"
             job_table.add_columns(
                 "Job id",
-                "Array ID",
-                "Array Index",
+                "Arr. ID",
+                "Arr. Idx",
                 "Name",
                 "Node Name",
-                "partition",
+                "Partition",
                 "Start/Sub. Time",
                 "End Time",
                 "State",
@@ -428,14 +434,15 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 [
                     job["job_id"]
                     for job in self.running_jobs_dict.values()
-                    if job["array_job_id"]["number"] == selected_job["array_job_id"]["number"]
+                    if job["array_job_id"]["number"]
+                    == selected_job["array_job_id"]["number"]
                 ]
             )
         else:
             self.jobs_to_be_deleted.append(selected_job["job_id"])
         if not self.mock:
             if delete_array:
-                os.system(f"scancel --array {selected_job["array_job_id"]["number"]}")
+                os.system(f"scancel --array {selected_job['array_job_id']['number']}")
             else:
                 os.system(f"scancel {selected_job['job_id']}")
 
@@ -444,7 +451,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         if selected_job["array_job_id"]["number"] == 0:
             return False
-        elif selected_job["array_task_id"]["number"] > 1 or selected_job["array_job_id"]["number"] != selected_job["job_id"]:
+        elif (
+            selected_job["array_task_id"]["number"] > 1
+            or selected_job["array_job_id"]["number"] != selected_job["job_id"]
+        ):
             return True
 
         return False
