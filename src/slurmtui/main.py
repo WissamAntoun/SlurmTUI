@@ -435,7 +435,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             self.jobs_to_be_deleted.append(selected_job["job_id"])
         if not self.mock:
             if delete_array:
-                os.system(f"scancel --array {selected_job['array_id']}")
+                os.system(f"scancel --array {selected_job["array_job_id"]["number"]}")
             else:
                 os.system(f"scancel {selected_job['job_id']}")
 
@@ -444,7 +444,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         if selected_job["array_job_id"]["number"] == 0:
             return False
-        elif selected_job["array_job_id"]["number"] > 1:
+        elif selected_job["array_task_id"]["number"] > 1 or selected_job["array_job_id"]["number"] != selected_job["job_id"]:
             return True
 
         return False
