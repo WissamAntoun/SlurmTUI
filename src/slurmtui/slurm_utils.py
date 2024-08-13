@@ -371,7 +371,7 @@ def get_running_jobs(
 
 
 def get_rich_state(state: str):
-  if isinstance(state, list):
+  if state.startswith("["):
     return " ".join([get_rich_state(s) for s in state])
   else:
     if state == "RUNNING":
