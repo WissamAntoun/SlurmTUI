@@ -88,6 +88,13 @@ TAIL_LINES = int(os.getenv("TAIL_LINES", "-1"))
 #     def action_do_nothing(self) -> None:
 #         pass
 
+def get_time(time_field) -> str:
+    if isinstance(time_field, int):
+        return time_field
+    elif isinstance(time_field, dict):
+        return time_field["number"]
+    else:
+        return 0
 
 class InfoScreen(Screen[str]):
     BINDINGS = [
@@ -287,13 +294,13 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 else str(v["job_state"])
             )
             time_remaining_string = ""
-            if v["end_time"]:
+            if get_time(v["end_time"]):
                 time_remaining = (
-                    datetime.datetime.fromtimestamp(v["end_time"])
+                    datetime.datetime.fromtimestamp(get_time(v["end_time"]))
                     - datetime.datetime.now()
                 ) / datetime.timedelta(hours=1)
                 time_remaining_string = str(
-                    datetime.datetime.fromtimestamp(v["end_time"])
+                    datetime.datetime.fromtimestamp(get_time(v["end_time"]))
                 )
 
                 if time_remaining > 0:
@@ -314,7 +321,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 str(v["partition"]),
                 str(
                     datetime.datetime.fromtimestamp(
-                        v["start_time"] if v["start_time"] else v["submit_time"]
+                        get_time(v["start_time"]) if get_time(v["start_time"]) else get_time(v["submit_time"])
                     )
                 ),
                 time_remaining_string,
