@@ -1,3 +1,4 @@
+from ast import literal_eval
 import json
 import os
 import subprocess
@@ -372,6 +373,8 @@ def get_running_jobs(
 
 def get_rich_state(state: str):
   if state.startswith("["):
+    # transform the string into a list of states
+    state = literal_eval(state)
     return " ".join([get_rich_state(s) for s in state])
   else:
     if state == "RUNNING":
