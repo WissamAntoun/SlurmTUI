@@ -371,6 +371,9 @@ def get_running_jobs(
 
 
 def get_rich_state(state: str):
+  if isinstance(state, list):
+    return " ".join([get_rich_state(s) for s in state])
+  else:
     if state == "RUNNING":
         return "[green]Running[/green]"
     elif state == "PENDING":
