@@ -1,8 +1,8 @@
-from ast import literal_eval
 import json
 import os
 import subprocess
 import sys
+from ast import literal_eval
 
 from .utils import console
 
@@ -372,25 +372,29 @@ def get_running_jobs(
 
 
 def get_rich_state(state: str):
-  if state.startswith("["):
-    # transform the string into a list of states
-    state = literal_eval(state)
-    return " ".join([get_rich_state(s) for s in state])
-  else:
-    if state == "RUNNING":
-        return "[green]Running[/green]"
-    elif state == "PENDING":
-        return "[cyan]Pending[cyan]"
-    elif state == "COMPLETED":
-        return "[blue]Completed[/blue]"
-    elif state == "FAILED":
-        return "[bright_red]Failed[/bright_red]"
-    elif state == "TIMEOUT":
-        return "[bright_red]Timeout[/bright_red]"
-    elif state == "CANCELLED":
-        return "[bright_red]Cancelled[/bright_red]"
-    elif "To be Deleted" in state:
+    if "To be Deleted" in state:
         actual_state = get_rich_state(state.replace("(To be Deleted)", "").strip())
         return f"{actual_state} [red](To be Deleted)[/red]"
+
+    if state.startswith("["):
+        # transform the string into a list of states
+        state = literal_eval(state)
+        return " ".join([get_rich_state(s) for s in state])
     else:
-        return f"[yellow]{state}[/yellow]"
+        if state == "RUNNING":
+            return "[green]Running[/green]"
+        elif state == "PENDING":
+            return "[cyan]Pending[cyan]"
+        elif state == "COMPLETED":
+            return "[blue]Completed[/blue]"
+        elif state == "FAILED":
+            return "[bright_red]Failed[/bright_red]"
+        elif state == "TIMEOUT":
+            return "[bright_red]Timeout[/bright_red]"
+        elif state == "CANCELLED":
+            return "[bright_red]Cancelled[/bright_red]"
+        elif "To be Deleted" in state:
+            actual_state = get_rich_state(state.replace("(To be Deleted)", "").strip())
+            return f"{actual_state} [red](To be Deleted)[/red]"
+        else:
+            return f"[yellow]{state}[/yellow]"
