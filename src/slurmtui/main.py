@@ -32,6 +32,8 @@ MOCK = os.getenv("MOCK", "False").lower() == "true"
 UPDATE_INTERVAL = int(os.getenv("UPDATE_INTERVAL", "10"))
 TAIL_LINES = int(os.getenv("TAIL_LINES", "-1"))
 CHECK_ALL_JOBS = os.getenv("ALL_JOBS", "False").lower() == "true"
+if CHECK_ALL_JOBS:
+    UPDATE_INTERVAL = 30
 
 
 # class LogScreen(Screen):
