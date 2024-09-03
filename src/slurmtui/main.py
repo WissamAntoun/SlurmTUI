@@ -88,6 +88,7 @@ TAIL_LINES = int(os.getenv("TAIL_LINES", "-1"))
 #     def action_do_nothing(self) -> None:
 #         pass
 
+
 def get_time(time_field) -> str:
     if isinstance(time_field, int):
         return time_field
@@ -95,6 +96,52 @@ def get_time(time_field) -> str:
         return time_field["number"]
     else:
         return 0
+
+
+def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) -> str:
+    submit_time = get_time(submit_time)
+    start_time = get_time(start_time)
+    end_time = get_time(end_time)
+
+    submit_time_string = ""
+    start_time_string = ""
+    end_time_string = ""
+
+    if submit_time:
+        submit_time_string = str(datetime.datetime.fromtimestamp(submit_time))
+    if start_time:
+        start_time_string = str(datetime.datetime.fromtimestamp(start_time))
+    if end_time:
+        end_time_string = str(datetime.datetime.fromtimestamp(end_time))
+
+    if job_state != "PENDING" and end_time:
+        time_remaining = (
+            datetime.datetime.fromtimestamp(end_time) - datetime.datetime.now()
+        ) / datetime.timedelta(hours=1)
+        if time_remaining > 0:
+            end_time_string += " (in " + str(round(time_remaining, 1)) + " hrs)"
+
+    if job_state == "PENDING":
+        if start_time:
+            time_till_start = (
+                datetime.datetime.fromtimestamp(start_time) - datetime.datetime.now()
+            ) / datetime.timedelta(hours=1)
+            if time_till_start > 0:
+                start_time_string += " (in " + str(round(time_till_start, 1)) + " hrs)"
+        elif submit_time:
+            time_since_submit = (
+                datetime.datetime.now() - datetime.datetime.fromtimestamp(submit_time)
+            ) / datetime.timedelta(hours=1)
+            if time_since_submit > 0:
+                submit_time_string += (
+                    " (submitted " + str(round(time_since_submit, 1)) + " hrs ago)"
+                )
+                start_time_string = submit_time_string
+        else:
+            pass
+
+    return start_time_string, end_time_string
+
 
 class InfoScreen(Screen[str]):
     BINDINGS = [
@@ -293,20 +340,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 if k in self.jobs_to_be_deleted
                 else str(v["job_state"])
             )
-            time_remaining_string = ""
-            if get_time(v["end_time"]):
-                time_remaining = (
-                    datetime.datetime.fromtimestamp(get_time(v["end_time"]))
-                    - datetime.datetime.now()
-                ) / datetime.timedelta(hours=1)
-                time_remaining_string = str(
-                    datetime.datetime.fromtimestamp(get_time(v["end_time"]))
-                )
-
-                if time_remaining > 0:
-                    time_remaining_string += (
-                        " (in " + str(round(time_remaining, 1)) + " hrs)"
-                    )
+            start_time_string, end_time_string = get_start_and_end_time_string(
+                v["submit_time"], v["start_time"], v["end_time"], v["job_state"]
+            )
 
             job_table.add_row(
                 str(v["job_id"]),
@@ -319,12 +355,8 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 str(v["name"])[0:50],
                 str(v["job_resources"].get("nodes", ""))[0:25],
                 str(v["partition"]),
-                str(
-                    datetime.datetime.fromtimestamp(
-                        get_time(v["start_time"]) if get_time(v["start_time"]) else get_time(v["submit_time"])
-                    )
-                ),
-                time_remaining_string,
+                start_time_string,
+                end_time_string,
                 get_rich_state(job_state),
                 str(v["state_reason"]) if v["state_reason"] != "None" else "",
                 str(v["account"]),
