@@ -31,6 +31,7 @@ from .slurm_utils import MOCK, get_rich_state, get_running_jobs
 MOCK = os.getenv("MOCK", "False").lower() == "true"
 UPDATE_INTERVAL = int(os.getenv("UPDATE_INTERVAL", "10"))
 TAIL_LINES = int(os.getenv("TAIL_LINES", "-1"))
+CHECK_ALL_JOBS = os.getenv("ALL_JOBS", "False").lower() == "true"
 
 
 # class LogScreen(Screen):
@@ -271,9 +272,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
     job_table = None
     jobs_to_be_deleted = []
 
-    def __init__(self, mock=MOCK, **kwargs: Any) -> None:
+    def __init__(self, mock=MOCK, check_all_jobs=CHECK_ALL_JOBS, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.mock = mock
+        self.check_all_jobs = check_all_jobs
 
     def _display_job_table(self) -> None:
         try:
@@ -287,7 +289,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         job_table.clear()
         if self.first_display:
             job_table.cursor_type = "row"
-            job_table.add_columns(
+            columns = [
                 "Job id",
                 "Arr. ID",
                 "Arr. Idx",
@@ -299,10 +301,15 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 "State",
                 "State Reason",
                 "Account",
-            )
+            ]
+            if self.check_all_jobs:
+                columns.append("User")
+            job_table.add_columns(*columns)
             self.first_display = False
 
-        self.running_jobs_dict = get_running_jobs(mock=self.mock)
+        self.running_jobs_dict = get_running_jobs(
+            mock=self.mock, check_all_jobs=self.check_all_jobs
+        )
 
         # if a job has been deleted, remove it from jobs_to_be_deleted
         if (
@@ -316,7 +323,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
                     self.jobs_to_be_deleted.remove(job)
 
         if self.running_jobs_dict is None or len(self.running_jobs_dict) == 0:
-            job_table.add_row(
+            _columns = [
                 "No jobs running",
                 "",
                 "",
@@ -328,7 +335,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 "",
                 "",
                 "",
-            )
+            ]
+            if self.check_all_jobs:
+                _columns.append("")
+            job_table.add_row(*_columns)
             return
 
         for idx, (k, v) in enumerate(self.running_jobs_dict.items()):
@@ -344,7 +354,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 v["submit_time"], v["start_time"], v["end_time"], v["job_state"]
             )
 
-            job_table.add_row(
+            _columns = [
                 str(v["job_id"]),
                 str(
                     v["array_job_id"]["number"]
@@ -360,8 +370,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 get_rich_state(job_state),
                 str(v["state_reason"]) if v["state_reason"] != "None" else "",
                 str(v["account"]),
-                key=str(k),
-            )
+            ]
+            if self.check_all_jobs:
+                _columns.append(str(v["user_name"]))
+            job_table.add_row(*_columns, key=str(k))
 
         total_jobs = len(self.running_jobs_dict)
         running_jobs = len(

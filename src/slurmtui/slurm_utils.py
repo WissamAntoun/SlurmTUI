@@ -351,15 +351,23 @@ fake_squeue = """{
 
 
 def get_running_jobs(
-    mock: bool = False, no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]"
+    mock: bool = False,
+    no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]",
+    check_all_jobs=False,
 ):
     if mock:
         running_jobs = fake_squeue
     else:
         try:
-            running_jobs = subprocess.check_output(
-                ["squeue", "-u", os.getenv("USER"), "--json"], stderr=subprocess.DEVNULL
-            ).decode("utf-8")
+            if check_all_jobs:
+                running_jobs = subprocess.check_output(
+                    ["squeue", "--json"], stderr=subprocess.DEVNULL
+                ).decode("utf-8")
+            else:
+                running_jobs = subprocess.check_output(
+                    ["squeue", "-u", os.getenv("USER"), "--json"],
+                    stderr=subprocess.DEVNULL,
+                ).decode("utf-8")
         except subprocess.CalledProcessError as e:
             console.print(no_jobs_msg)
             return None
