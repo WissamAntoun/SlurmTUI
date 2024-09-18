@@ -406,3 +406,12 @@ def get_rich_state(state: str):
             return f"{actual_state} [red](To be Deleted)[/red]"
         else:
             return f"[yellow]{state}[/yellow]"
+
+
+def check_for_state(job_state: str, state_to_check: str):
+    if job_state.startswith("["):
+        # transform the string into a list of states
+        job_state = literal_eval(job_state)
+        return any([check_for_state(s, state_to_check) for s in job_state])
+    else:
+        return job_state == state_to_check

@@ -26,7 +26,7 @@ from textual.widgets import (
     Static,
 )
 
-from .slurm_utils import MOCK, get_rich_state, get_running_jobs
+from .slurm_utils import MOCK, check_for_state, get_rich_state, get_running_jobs
 
 MOCK = os.getenv("MOCK", "False").lower() == "true"
 UPDATE_INTERVAL = int(os.getenv("UPDATE_INTERVAL", "10"))
@@ -117,20 +117,14 @@ def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) 
     if end_time:
         end_time_string = str(datetime.datetime.fromtimestamp(end_time))
 
-    if (
-        (isinstance(job_state, str) and job_state != "PENDING")
-        or (isinstance(job_state, list) and "PENDING" not in job_state)
-        and end_time
-    ):
+    if not check_for_state(job_state, "PENDING") and end_time:
         time_remaining = (
             datetime.datetime.fromtimestamp(end_time) - datetime.datetime.now()
         ) / datetime.timedelta(hours=1)
         if time_remaining > 0:
             end_time_string += " (in " + str(round(time_remaining, 1)) + " hrs)"
 
-    if (isinstance(job_state, str) and job_state == "PENDING") or (
-        isinstance(job_state, list) and "PENDING" in job_state
-    ):
+    if check_for_state(job_state, "PENDING"):
         if start_time:
             time_till_start = (
                 datetime.datetime.fromtimestamp(start_time) - datetime.datetime.now()
@@ -385,7 +379,11 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         total_jobs = len(self.running_jobs_dict)
         running_jobs = len(
-            [x for x in self.running_jobs_dict.values() if x["job_state"] == "RUNNING"]
+            [
+                x
+                for x in self.running_jobs_dict.values()
+                if check_for_state(x["job_state"], "RUNNING")
+            ]
         )
         to_be_deleted_jobs = len(self.jobs_to_be_deleted)
 
