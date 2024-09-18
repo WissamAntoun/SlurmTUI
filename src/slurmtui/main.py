@@ -107,13 +107,20 @@ def format_time_string(time_delta: datetime.timedelta) -> str:
     minutes, seconds = divmod(remainder, 60)
     time_string = ""
     if days > 0:
-        time_string += f"{days} days, "
+        fraction_of_day = round(time_delta.seconds / 86400, 1)
+        time_string += f"{days}.{fraction_of_day} days"
+        return time_string
     if hours > 0:
-        time_string += f"{hours} hours, "
+        fraction_of_hour = round(time_delta.seconds / 3600, 1)
+        time_string += f"{hours}.{fraction_of_hour} hours"
+        return time_string
     if minutes > 0:
-        time_string += f"{minutes} minutes, "
+        fraction_of_minute = round(time_delta.seconds / 60, 1)
+        time_string += f"{minutes}.{fraction_of_minute} minutes"
+        return time_string
     if seconds > 0:
         time_string += f"{seconds} seconds"
+        return time_string
     return time_string
 
 
