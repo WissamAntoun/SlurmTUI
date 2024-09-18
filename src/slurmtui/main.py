@@ -147,7 +147,7 @@ def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) 
         # check if time remaining is positive
         # TypeError: '>' not supported between instances of 'datetime.timedelta' and 'int'
         if time_remaining.days >= 0:
-            end_time_string += " (in " + format_time_string(time_remaining) + " hrs)"
+            end_time_string += " (in " + format_time_string(time_remaining) + ")"
 
     if check_for_state(job_state, "PENDING"):
         if start_time:
@@ -155,16 +155,14 @@ def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) 
                 datetime.datetime.fromtimestamp(start_time) - datetime.datetime.now()
             )
             if time_till_start.days >= 0:
-                start_time_string += (
-                    " (in " + format_time_string(time_till_start) + " hrs)"
-                )
+                start_time_string += " (in " + format_time_string(time_till_start) + ")"
         elif submit_time:
             time_since_submit = (
                 datetime.datetime.now() - datetime.datetime.fromtimestamp(submit_time)
             )
             if time_since_submit.days >= 0:
                 submit_time_string += (
-                    " (submitted " + format_time_string(time_since_submit) + " hrs ago)"
+                    " (submitted " + format_time_string(time_since_submit) + " ago)"
                 )
                 start_time_string = submit_time_string
         else:
