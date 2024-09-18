@@ -117,14 +117,20 @@ def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) 
     if end_time:
         end_time_string = str(datetime.datetime.fromtimestamp(end_time))
 
-    if job_state != "PENDING" and end_time:
+    if (
+        (isinstance(job_state, str) and job_state != "PENDING")
+        or (isinstance(job_state, list) and "PENDING" not in job_state)
+        and end_time
+    ):
         time_remaining = (
             datetime.datetime.fromtimestamp(end_time) - datetime.datetime.now()
         ) / datetime.timedelta(hours=1)
         if time_remaining > 0:
             end_time_string += " (in " + str(round(time_remaining, 1)) + " hrs)"
 
-    if job_state == "PENDING":
+    if (isinstance(job_state, str) and job_state == "PENDING") or (
+        isinstance(job_state, list) and "PENDING" in job_state
+    ):
         if start_time:
             time_till_start = (
                 datetime.datetime.fromtimestamp(start_time) - datetime.datetime.now()
