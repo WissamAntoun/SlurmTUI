@@ -101,6 +101,22 @@ def get_time(time_field) -> str:
         return 0
 
 
+def format_time_string(time_delta: datetime.timedelta) -> str:
+    days = time_delta.days
+    hours, remainder = divmod(time_delta.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    time_string = ""
+    if days > 0:
+        time_string += f"{days} days, "
+    if hours > 0:
+        time_string += f"{hours} hours, "
+    if minutes > 0:
+        time_string += f"{minutes} minutes, "
+    if seconds > 0:
+        time_string += f"{seconds} seconds"
+    return time_string
+
+
 def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) -> str:
     submit_time = get_time(submit_time)
     start_time = get_time(start_time)
@@ -120,24 +136,28 @@ def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) 
     if not check_for_state(job_state, "PENDING") and end_time:
         time_remaining = (
             datetime.datetime.fromtimestamp(end_time) - datetime.datetime.now()
-        ) / datetime.timedelta(hours=1)
-        if time_remaining > 0:
-            end_time_string += " (in " + str(round(time_remaining, 1)) + " hrs)"
+        )
+        # check if time remaining is positive
+        # TypeError: '>' not supported between instances of 'datetime.timedelta' and 'int'
+        if time_remaining.days >= 0:
+            end_time_string += " (in " + format_time_string(time_remaining) + " hrs)"
 
     if check_for_state(job_state, "PENDING"):
         if start_time:
             time_till_start = (
                 datetime.datetime.fromtimestamp(start_time) - datetime.datetime.now()
-            ) / datetime.timedelta(hours=1)
-            if time_till_start > 0:
-                start_time_string += " (in " + str(round(time_till_start, 1)) + " hrs)"
+            )
+            if time_till_start.days >= 0:
+                start_time_string += (
+                    " (in " + format_time_string(time_till_start) + " hrs)"
+                )
         elif submit_time:
             time_since_submit = (
                 datetime.datetime.now() - datetime.datetime.fromtimestamp(submit_time)
-            ) / datetime.timedelta(hours=1)
-            if time_since_submit > 0:
+            )
+            if time_since_submit.days >= 0:
                 submit_time_string += (
-                    " (submitted " + str(round(time_since_submit, 1)) + " hrs ago)"
+                    " (submitted " + format_time_string(time_since_submit) + " hrs ago)"
                 )
                 start_time_string = submit_time_string
         else:
