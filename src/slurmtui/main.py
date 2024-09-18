@@ -434,7 +434,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             job_table.cursor_coordinate.row
         ]
 
-        if selected_job["job_state"] == "PENDING":
+        if check_for_state(selected_job["job_state"], "PENDING"):
             self.push_screen(
                 MessageScreen("Job is in Pending state, no logs available!!")
             )
@@ -475,7 +475,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             job_table.cursor_coordinate.row
         ]
 
-        if selected_job["job_state"] == "PENDING":
+        if check_for_state(selected_job["job_state"], "PENDING"):
             self.push_screen(
                 MessageScreen("Job is in Waiting state, you cannot connect to it!!")
             )
