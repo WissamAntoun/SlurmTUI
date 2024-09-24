@@ -566,6 +566,8 @@ class SlurmTUI(App[SlurmTUIReturn]):
             """Called when ConfirmScreen is dismissed."""
             if confirm:
                 self._delete_job(selected_job, delete_array=True)
+            else:
+                self._delete_job(selected_job, delete_array=False)
 
         def check_confirm(confirm: bool) -> None:
             """Called when ConfirmScreen is dismissed."""
