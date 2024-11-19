@@ -524,8 +524,12 @@ class SlurmTUI(App[SlurmTUIReturn]):
             self.jobs_to_be_deleted.append(selected_job["job_id"])
         if not self.mock:
             if delete_array:
+                print(
+                    f"Deleting Array Job with: scancel {selected_job['array_job_id']['number']}"
+                )
                 os.system(f"scancel {selected_job['array_job_id']['number']}")
             else:
+                print(f"Deleting Job with: scancel {selected_job['job_id']}")
                 os.system(f"scancel {selected_job['job_id']}")
 
     def _check_job_is_array(self, selected_job: Dict[str, Any]) -> bool:
