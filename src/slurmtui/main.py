@@ -26,79 +26,14 @@ from textual.widgets import (
     Static,
 )
 
-from .slurm_utils import MOCK, check_for_state, get_rich_state, get_running_jobs
-
-MOCK = os.getenv("MOCK", "False").lower() == "true"
-UPDATE_INTERVAL = int(os.getenv("UPDATE_INTERVAL", "10"))
-TAIL_LINES = int(os.getenv("TAIL_LINES", "-1"))
-CHECK_ALL_JOBS = os.getenv("ALL_JOBS", "False").lower() == "true"
-if CHECK_ALL_JOBS:
-    UPDATE_INTERVAL = 30
-
-
-# class LogScreen(Screen):
-#     BINDINGS = [
-#         # I couldn't disable the default bindings, so I just overrode them
-#         Binding("c", "do_nothing", "", False),
-#         Binding("l", "do_nothing", "", False),
-#         Binding("e", "do_nothing", "", False),
-#         Binding("d", "do_nothing", "", False),
-#         ("escape", "app.pop_screen", "Go Back"),
-#         Binding("b", "app.pop_screen", "Go Back", False),
-#         Binding("backspace", "app.pop_screen", "Go Back", False),
-#         ("q", "app.quit", "Quit"),
-#     ]
-
-#     def __init__(self, file_path: str, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         self.file_path = file_path
-#         self.last_position = 0
-#         self.file_warning_shown = False
-
-#     def compose(self) -> ComposeResult:
-#         yield Header(show_clock=True, name="slurm Job Logs", id="log_header")
-#         yield RichLog(highlight=True, markup=False, id="logs_text")
-#         yield Footer()
-
-#     def on_mount(self) -> None:
-#         self.set_timer(1, self.update_log)
-
-#     async def _text_reader(self) -> None:
-#         logs = self.query_one(RichLog)
-#         if os.path.isfile(self.file_path):
-#             with open(self.file_path, "r") as f:
-#                 f.seek(self.last_position)
-#                 text = f.read()
-#                 self.last_position = f.tell()
-#             if text:
-#                 if TAIL_LINES > 0:
-#                     text = "\n".join(text.split("\n")[-TAIL_LINES:])
-#                 logs.write(Text(text, no_wrap=False, end=""))
-#         else:
-#             if not self.file_warning_shown:
-#                 logs.write(
-#                     Text(
-#                         "Log file not created yet or not found! Waiting...",
-#                         style="yellow",
-#                     )
-#                 )
-#                 self.file_warning_shown = True
-
-#     async def update_log(self) -> None:
-#         await self._text_reader()
-#         self.set_timer(1, self.update_log)
-
-#     def action_do_nothing(self) -> None:
-#         pass
-
-
-def get_time(time_field) -> str:
-    if isinstance(time_field, int):
-        return time_field
-    elif isinstance(time_field, dict):
-        return time_field["number"]
-    else:
-        return 0
+from .slurm_utils import (
+    MOCK,
+    check_for_state,
+    get_rich_state,
+    get_running_jobs,
+    get_time,
+)
+from .utils import CHECK_ALL_JOBS, MOCK, UPDATE_INTERVAL, get_datetime_now
 
 
 def format_time_string(time_delta: datetime.timedelta) -> str:
@@ -107,19 +42,19 @@ def format_time_string(time_delta: datetime.timedelta) -> str:
     minutes, seconds = divmod(remainder, 60)
     time_string = ""
     if days > 0:
-        fraction_of_day = round(time_delta.seconds / 86400, 1)
+        fraction_of_day = days + round(time_delta.seconds / 86400, 1)
         time_string += f"{fraction_of_day} days"
         return time_string
     if hours > 0:
         fraction_of_hour = round(time_delta.seconds / 3600, 1)
-        time_string += f"{fraction_of_hour} hours"
+        time_string += f"{fraction_of_hour} hrs"
         return time_string
     if minutes > 0:
         fraction_of_minute = round(time_delta.seconds / 60, 1)
-        time_string += f"{fraction_of_minute} minutes"
+        time_string += f"{fraction_of_minute} mins"
         return time_string
     if seconds > 0:
-        time_string += f"{seconds} seconds"
+        time_string += f"{seconds} secs"
         return time_string
     return time_string
 
@@ -141,9 +76,7 @@ def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) 
         end_time_string = str(datetime.datetime.fromtimestamp(end_time))
 
     if not check_for_state(job_state, "PENDING") and end_time:
-        time_remaining = (
-            datetime.datetime.fromtimestamp(end_time) - datetime.datetime.now()
-        )
+        time_remaining = datetime.datetime.fromtimestamp(end_time) - get_datetime_now()
         # check if time remaining is positive
         # TypeError: '>' not supported between instances of 'datetime.timedelta' and 'int'
         if time_remaining.days >= 0:
@@ -152,17 +85,17 @@ def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) 
     if check_for_state(job_state, "PENDING"):
         if start_time:
             time_till_start = (
-                datetime.datetime.fromtimestamp(start_time) - datetime.datetime.now()
+                datetime.datetime.fromtimestamp(start_time) - get_datetime_now()
             )
             if time_till_start.days >= 0:
                 start_time_string += " (in " + format_time_string(time_till_start) + ")"
         elif submit_time:
-            time_since_submit = (
-                datetime.datetime.now() - datetime.datetime.fromtimestamp(submit_time)
+            time_since_submit = get_datetime_now() - datetime.datetime.fromtimestamp(
+                submit_time
             )
             if time_since_submit.days >= 0:
                 submit_time_string += (
-                    " (submitted " + format_time_string(time_since_submit) + " ago)"
+                    " (sub. " + format_time_string(time_since_submit) + " ago)"
                 )
                 start_time_string = submit_time_string
         else:
@@ -524,12 +457,14 @@ class SlurmTUI(App[SlurmTUIReturn]):
             self.jobs_to_be_deleted.append(selected_job["job_id"])
         if not self.mock:
             if delete_array:
-                print(
-                    f"Deleting Array Job with: scancel {selected_job['array_job_id']['number']}"
-                )
+                # write the command to a file
+                with open("delete_job.txt", "w") as f:
+                    f.write(f"array scancel {selected_job['array_job_id']['number']}")
                 os.system(f"scancel {selected_job['array_job_id']['number']}")
             else:
-                print(f"Deleting Job with: scancel {selected_job['job_id']}")
+                # write the command to a file
+                with open("delete_job.txt", "w") as f:
+                    f.write(f"scancel {selected_job['job_id']}")
                 os.system(f"scancel {selected_job['job_id']}")
 
     def _check_job_is_array(self, selected_job: Dict[str, Any]) -> bool:

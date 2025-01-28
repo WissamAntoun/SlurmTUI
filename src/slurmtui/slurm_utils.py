@@ -1,12 +1,11 @@
+import datetime
 import json
 import os
 import subprocess
 import sys
 from ast import literal_eval
 
-from .utils import console
-
-MOCK = os.getenv("MOCK", "False").lower() == "True"
+from .utils import MOCK, console
 
 fake_squeue = """{
    "meta": {
@@ -348,6 +347,32 @@ fake_squeue = """{
    ]
 }
 """
+FAKE_QUEUE_JSON = os.getenv("FAKE_QUEUE_JSON", None)
+if FAKE_QUEUE_JSON:
+    fake_squeue = open(FAKE_QUEUE_JSON).read()
+
+
+def get_time(time_field) -> str:
+    if isinstance(time_field, int):
+        return time_field
+    elif isinstance(time_field, dict):
+        return time_field["number"]
+    else:
+        return 0
+
+
+if MOCK:
+    all_jobs = json.loads(fake_squeue)["jobs"]
+    latest_job = sorted(all_jobs, key=lambda k: get_time(k["submit_time"]))[-1]
+    latest_time = get_time(latest_job["submit_time"])
+
+
+def get_datetime_now():
+    if MOCK:
+        # get the latest time from the fake squeue
+        return datetime.datetime.fromtimestamp(latest_time)
+    else:
+        return datetime.datetime.now()
 
 
 def get_running_jobs(
