@@ -12,7 +12,7 @@ def get_long_description():
 
 setup(
     name="slurmtui",
-    version="0.2.3",
+    version="0.2.4",
     author="Wissam Antoun",
     author_email="wissam.antoun@gmail.com",
     description="A simple Terminal UI (TUI) for Slurm",
