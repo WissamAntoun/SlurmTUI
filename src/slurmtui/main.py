@@ -29,11 +29,12 @@ from textual.widgets import (
 from .slurm_utils import (
     MOCK,
     check_for_state,
+    get_datetime_now,
     get_rich_state,
     get_running_jobs,
     get_time,
 )
-from .utils import CHECK_ALL_JOBS, MOCK, UPDATE_INTERVAL, get_datetime_now
+from .utils import CHECK_ALL_JOBS, MOCK, UPDATE_INTERVAL
 
 
 def format_time_string(time_delta: datetime.timedelta) -> str:
