@@ -689,14 +689,17 @@ def main():
             stderr=subprocess.PIPE,
             text=True,
         ).stdout
-        squeue_version = squeue_version.split()[1]
-        if Version(squeue_version) < Version("21.08"):
-            console.print(
-                "squeue version must be 21.08 or higher, please update Slurm"
-                f" (current version: {squeue_version})",
-                style="red",
-            )
-            sys.exit(1)
+        try:
+            squeue_version = squeue_version.split()[1]
+            if Version(squeue_version) < Version("21.08"):
+                console.print(
+                    "squeue version must be 21.08 or higher, please update Slurm"
+                    f" (current version: {squeue_version})",
+                    style="red",
+                )
+                sys.exit(1)
+        except:
+            pass
 
     while True:
         app = SlurmTUI()
