@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-requirements = ["typer[all]==0.9.0", "rich==13.4.2", "textual==0.32.0"]
+requirements = ["rich==13.4.2", "textual==1.0.0"]
 
 
 def get_long_description():
@@ -12,7 +12,7 @@ def get_long_description():
 
 setup(
     name="slurmtui",
-    version="0.2.4",
+    version="0.3.0",
     author="Wissam Antoun",
     author_email="wissam.antoun@gmail.com",
     description="A simple Terminal UI (TUI) for Slurm",
@@ -48,6 +48,8 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering",
     ],
 )

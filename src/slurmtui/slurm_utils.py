@@ -4,8 +4,9 @@ import os
 import subprocess
 import sys
 from ast import literal_eval
+from functools import lru_cache
 
-from .utils import MOCK, console
+from .utils import SETTINGS, console
 
 fake_squeue = """{
    "meta": {
@@ -347,9 +348,14 @@ fake_squeue = """{
    ]
 }
 """
-FAKE_QUEUE_JSON = os.getenv("FAKE_QUEUE_JSON", None)
-if FAKE_QUEUE_JSON:
-    fake_squeue = open(FAKE_QUEUE_JSON).read()
+
+
+def get_fake_squeue(fake_queue_json_path: str = None):
+    if fake_queue_json_path:
+        with open(fake_queue_json_path, "r") as f:
+            return f.read()
+    else:
+        return fake_squeue
 
 
 def get_time(time_field) -> str:
@@ -361,36 +367,48 @@ def get_time(time_field) -> str:
         return 0
 
 
-if MOCK:
-    all_jobs = json.loads(fake_squeue)["jobs"]
+@lru_cache
+def get_latest_time(settings: SETTINGS):
+    all_jobs = json.loads(get_fake_squeue(settings.FAKE_QUEUE_JSON_PATH))["jobs"]
     latest_job = sorted(all_jobs, key=lambda k: get_time(k["submit_time"]))[-1]
     latest_time = get_time(latest_job["submit_time"])
+    return latest_time
 
 
-def get_datetime_now():
-    if MOCK:
+def get_datetime_now(settings: SETTINGS):
+    if settings.MOCK:
         # get the latest time from the fake squeue
-        return datetime.datetime.fromtimestamp(latest_time)
+        return datetime.datetime.fromtimestamp(get_latest_time(settings))
     else:
         return datetime.datetime.now()
 
 
+@lru_cache
+def get_user():
+    return os.getenv("USER", os.getenv("USERNAME", "unknown"))
+
+
 def get_running_jobs(
-    mock: bool = False,
+    settings: SETTINGS,
     no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]",
-    check_all_jobs=False,
 ):
-    if mock:
-        running_jobs = fake_squeue
+    if settings.MOCK:
+        running_jobs = get_fake_squeue(settings.FAKE_QUEUE_JSON_PATH)
     else:
         try:
-            if check_all_jobs:
+            if settings.FAKE_QUEUE_JSON_PATH:
+                cmd = ["squeue", "--json"]
+                if settings.SQUEUE_ARGS:
+                    cmd.extend(settings.SQUEUE_ARGS)
                 running_jobs = subprocess.check_output(
-                    ["squeue", "--json"], stderr=subprocess.DEVNULL
+                    cmd, stderr=subprocess.DEVNULL
                 ).decode("utf-8")
             else:
+                cmd = ["squeue", "-u", get_user(), "--json"]
+                if settings.SQUEUE_ARGS:
+                    cmd.extend(settings.SQUEUE_ARGS)
                 running_jobs = subprocess.check_output(
-                    ["squeue", "-u", os.getenv("USER"), "--json"],
+                    cmd,
                     stderr=subprocess.DEVNULL,
                 ).decode("utf-8")
         except subprocess.CalledProcessError as e:

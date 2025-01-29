@@ -12,11 +12,19 @@ pip install slurmtui
 ```
 
 ## Usage
-Just run `slurmtui` in your terminal.
+Just run `slurmtui`/`slurmui`/`sui` in your terminal.
 
-Environment variables:
-- `UPDATE_INTERVAL`: Refresh rate in seconds (default: 10)
-- `TAIL_LINES`: Number of lines to show in the tail (default: -1, show all)
+Settings can be configured in `~/.slurmtui_settings.json`, you can override the settings path by setting `SLURMTUI_SETTINGS`.
+
+Settings can also be overridden by passing arguments to the command line, for example:
+```bash
+slurmtui --update-interval 5
+```
+
+All extra arguments will be passed to `squeue` command, for example:
+```bash
+slurmtui --account my_account
+```
 
 
 ![jobui](./img/screenshot.png)

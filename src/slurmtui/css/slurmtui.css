@@ -26,6 +26,11 @@ Button {
 
 ConfirmScreen {
     align: center middle;
+    background: $background 60%;
+
+    &:ansi {
+        background: transparent;
+    }
 }
 
 #confirm_dialog {
@@ -46,3 +51,7 @@ ConfirmScreen {
     content-align: center middle;
 }
 
+.settings_row {
+    height: 20;
+    width: auto;
+}
