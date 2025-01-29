@@ -396,7 +396,7 @@ def get_running_jobs(
         running_jobs = get_fake_squeue(settings.FAKE_QUEUE_JSON_PATH)
     else:
         try:
-            if settings.FAKE_QUEUE_JSON_PATH:
+            if settings.CHECK_ALL_JOBS:
                 cmd = ["squeue", "--json"]
                 if settings.SQUEUE_ARGS:
                     cmd.extend(settings.SQUEUE_ARGS)
