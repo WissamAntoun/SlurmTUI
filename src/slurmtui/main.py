@@ -649,6 +649,11 @@ def main():
     parser.add_argument(
         "--fake_queue_json_path", help="Fake queue JSON path", default=None
     )
+    parser.add_argument(
+        "--acc",
+        help="comma-seperated account list to filter by since squeue --json has a bug on version < 24.05.1.",
+        default=None,
+    )
     args, remaining_args = parser.parse_known_args()
 
     if args.update_interval is not None:
@@ -661,6 +666,8 @@ def main():
         settings.FAKE_QUEUE_JSON_PATH = args.fake_queue_json_path
     if remaining_args:
         settings.SQUEUE_ARGS = remaining_args
+    if args.acc:
+        settings.ACCOUNTS = args.acc.split(",")
 
     if not settings.MOCK:
         # check if squeue is available

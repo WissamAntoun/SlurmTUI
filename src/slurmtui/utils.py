@@ -1,6 +1,6 @@
 import json
 import os
-from dataclasses import Field, dataclass, field, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import List
 
@@ -27,6 +27,10 @@ class SETTINGS:
     )
     SQUEUE_ARGS: List[str] = field(
         default=None, metadata="List of additional arguments to pass to squeue"
+    )
+    ACCOUNTS: List[str] = field(
+        default=None,
+        metadata="List of accounts to filter the jobs by since squeue --json has a bug on version < 24.05.1.",
     )
 
     def __post_init__(self):

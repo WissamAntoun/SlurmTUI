@@ -415,7 +415,13 @@ def get_running_jobs(
             console.print(no_jobs_msg)
             return None
 
-    running_jobs = json.loads(running_jobs)["jobs"]
+    squeue_load = json.loads(running_jobs)
+
+    if settings.ACCOUNTS:
+        squeue_load["jobs"] = [
+            job for job in squeue_load["jobs"] if job["account"] in settings.ACCOUNTS
+        ]
+    running_jobs = squeue_load["jobs"]
     # sort by job id
     running_jobs = sorted(running_jobs, key=lambda k: k["job_id"])
     running_jobs_dict = {item["job_id"]: item for item in running_jobs}
