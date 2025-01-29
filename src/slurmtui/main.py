@@ -681,7 +681,7 @@ def main():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-        ).stdoutq
+        ).stdout
         squeue_version = squeue_version.split()[1]
         if Version(squeue_version) < Version("21.08"):
             console.print(
