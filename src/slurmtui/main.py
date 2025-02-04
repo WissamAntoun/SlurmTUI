@@ -671,24 +671,20 @@ def main():
 
     if not settings.MOCK:
         # check if squeue is available
+        # check if squeue version is 21.08 or higher
         try:
-            subprocess.run(
-                ["squeue", "-h"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
+            squeue_version = subprocess.run(
+                ["squeue", "--version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            ).stdout
         except FileNotFoundError:
             console.print(
                 "squeue command not found, please make sure Slurm is installed and squeue is in your PATH",
                 style="red",
             )
             sys.exit(1)
-
-        # check if squeue version is 21.08 or higher
-        squeue_version = subprocess.run(
-            ["squeue", "--version"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        ).stdout
         try:
             squeue_version = squeue_version.split()[1]
             if Version(squeue_version) < Version("21.08"):
