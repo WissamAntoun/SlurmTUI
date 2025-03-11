@@ -368,7 +368,7 @@ def get_time(time_field) -> str:
 
 
 @lru_cache
-def get_latest_time(settings: SETTINGS):
+def get_fake_latest_time(settings: SETTINGS):
     all_jobs = json.loads(get_fake_squeue(settings.FAKE_QUEUE_JSON_PATH))["jobs"]
     latest_job = sorted(all_jobs, key=lambda k: get_time(k["submit_time"]))[-1]
     latest_time = get_time(latest_job["submit_time"])
@@ -378,7 +378,7 @@ def get_latest_time(settings: SETTINGS):
 def get_datetime_now(settings: SETTINGS):
     if settings.MOCK:
         # get the latest time from the fake squeue
-        return datetime.datetime.fromtimestamp(get_latest_time(settings))
+        return datetime.datetime.fromtimestamp(get_fake_latest_time(settings))
     else:
         return datetime.datetime.now()
 
