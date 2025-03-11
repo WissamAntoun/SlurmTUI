@@ -5,6 +5,7 @@ import os
 import socket
 import subprocess
 import sys
+from collections import OrderedDict
 from typing import Any, Coroutine, Dict
 
 from packaging.version import Version
@@ -30,94 +31,18 @@ from textual.widgets import (
 )
 
 from .slurm_utils import (
+    check_for_any_job_array,
+    check_for_job_state_reason,
     check_for_state,
-    get_datetime_now,
     get_rich_state,
     get_running_jobs,
-    get_time,
+    get_start_and_end_time_string,
 )
 from .utils import SETTINGS, console
 
 global settings
 
 settings = SETTINGS().load()
-
-
-def format_time_string(time_delta: datetime.timedelta) -> str:
-    days = time_delta.days
-    hours, remainder = divmod(time_delta.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    time_string = ""
-    if days > 0:
-        fraction_of_day = days + round(time_delta.seconds / 86400, 1)
-        time_string += f"{fraction_of_day} days"
-        return time_string
-    if hours > 0:
-        fraction_of_hour = round(time_delta.seconds / 3600, 1)
-        time_string += f"{fraction_of_hour} hrs"
-        return time_string
-    if minutes > 0:
-        fraction_of_minute = round(time_delta.seconds / 60, 1)
-        time_string += f"{fraction_of_minute} mins"
-        return time_string
-    if seconds > 0:
-        time_string += f"{seconds} secs"
-        return time_string
-    return time_string
-
-
-def get_start_and_end_time_string(submit_time, start_time, end_time, job_state) -> str:
-    submit_time = get_time(submit_time)
-    start_time = get_time(start_time)
-    end_time = get_time(end_time)
-
-    submit_time_string = ""
-    start_time_string = ""
-    end_time_string = ""
-
-    if submit_time:
-        # submit_time_string = str(datetime.datetime.fromtimestamp(submit_time))
-        submit_time_string = datetime.datetime.fromtimestamp(submit_time).strftime(
-            "%y-%m-%d %H:%M:%S"
-        )
-    if start_time:
-        start_time_string = datetime.datetime.fromtimestamp(start_time).strftime(
-            "%y-%m-%d %H:%M:%S"
-        )
-    if end_time:
-        end_time_string = datetime.datetime.fromtimestamp(end_time).strftime(
-            "%y-%m-%d %H:%M:%S"
-        )
-
-    if not check_for_state(job_state, "PENDING") and end_time:
-        time_remaining = datetime.datetime.fromtimestamp(end_time) - get_datetime_now(
-            settings
-        )
-        # check if time remaining is positive
-        # TypeError: '>' not supported between instances of 'datetime.timedelta' and 'int'
-        if time_remaining.days >= 0:
-            end_time_string += " (in " + format_time_string(time_remaining) + ")"
-
-    if check_for_state(job_state, "PENDING"):
-        if start_time:
-            time_till_start = datetime.datetime.fromtimestamp(
-                start_time
-            ) - get_datetime_now(settings)
-            if time_till_start.days >= 0:
-                start_time_string += " (in " + format_time_string(time_till_start) + ")"
-        elif submit_time:
-            time_since_submit = get_datetime_now(
-                settings
-            ) - datetime.datetime.fromtimestamp(submit_time)
-            if time_since_submit.days >= 0:
-                submit_time_string += (
-                    " (sub. " + format_time_string(time_since_submit) + " ago)"
-                )
-                start_time_string = submit_time_string
-        else:
-            pass
-
-    return start_time_string, end_time_string
 
 
 class SettingsScreen(Screen):
@@ -269,6 +194,46 @@ class SlurmTUIReturn:
         self.extra = extra
 
 
+class ColumnManager:
+    def __init__(self, initial_columns: Dict[str, bool]):
+        # OrderedDict to store column names and their enabled status
+        self.columns = initial_columns.copy()
+
+    def enable_column(self, column_name):
+        """Enable a column by name."""
+        if column_name in self.columns:
+            self.columns[column_name] = True
+
+    def disable_column(self, column_name):
+        """Disable a column by name."""
+        if column_name in self.columns:
+            self.columns[column_name] = False
+
+    def get_enabled_columns(self):
+        """Return a list of enabled column names in order."""
+        return [col for col, enabled in self.columns.items() if enabled]
+
+    def get_all_columns(self):
+        """Return a list of all column names in order."""
+        return list(self.columns.keys())
+
+
+DEFAULT_COLUMNS = {
+    "Job id": True,
+    "Arr. ID": False,
+    "Arr. Idx": False,
+    "Name": True,
+    "Node Name": True,
+    "Partition": True,
+    "Start/Sub. Time": True,
+    "End Time": True,
+    "State": True,
+    "State Reason": True,
+    "Account": True,
+    "User": False,
+}
+
+
 class SlurmTUI(App[SlurmTUIReturn]):
     """A Textual UI for slurm jobs."""
 
@@ -302,29 +267,31 @@ class SlurmTUI(App[SlurmTUIReturn]):
             job_table = self.job_table
 
         old_cursor = job_table.cursor_coordinate
+        self.running_jobs_dict = get_running_jobs(settings=settings)
+        job_array_exists = check_for_any_job_array(self.running_jobs_dict)
+        job_reason_exists = check_for_job_state_reason(self.running_jobs_dict)
 
         job_table.clear()
         if self.first_display:
             job_table.cursor_type = "row"
-            columns = [
-                "Job id",
-                "Arr. ID",
-                "Arr. Idx",
-                "Name",
-                "Node Name",
-                "Partition",
-                "Start/Sub. Time",
-                "End Time",
-                "State",
-                "State Reason",
-                "Account",
-            ]
+            column_manager = ColumnManager(DEFAULT_COLUMNS)
             if settings.CHECK_ALL_JOBS:
-                columns.append("User")
-            job_table.add_columns(*columns)
-            self.first_display = False
+                column_manager.enable_column("User")
+            else:
+                column_manager.disable_column("User")
+            if job_array_exists:
+                column_manager.enable_column("Arr. ID")
+                column_manager.enable_column("Arr. Idx")
+            else:
+                column_manager.disable_column("Arr. ID")
+                column_manager.disable_column("Arr. Idx")
+            if job_reason_exists:
+                column_manager.enable_column("State Reason")
+            else:
+                column_manager.disable_column("State Reason")
 
-        self.running_jobs_dict = get_running_jobs(settings=settings)
+            job_table.add_columns(*column_manager.get_enabled_columns())
+            self.first_display = False
 
         # if a job has been deleted, remove it from jobs_to_be_deleted
         if (
@@ -338,21 +305,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
                     self.jobs_to_be_deleted.remove(job)
 
         if self.running_jobs_dict is None or len(self.running_jobs_dict) == 0:
-            _columns = [
-                "No jobs running",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-            ]
-            if settings.CHECK_ALL_JOBS:
-                _columns.append("")
+            _columns = ["No jobs running"] + (
+                len(column_manager.get_enabled_columns()) - 1
+            ) * [""]
             job_table.add_row(*_columns)
             return
 
@@ -366,26 +321,46 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 else str(v["job_state"])
             )
             start_time_string, end_time_string = get_start_and_end_time_string(
-                v["submit_time"], v["start_time"], v["end_time"], v["job_state"]
+                v["submit_time"],
+                v["start_time"],
+                v["end_time"],
+                v["job_state"],
+                settings,
             )
 
-            _columns = [
-                str(v["job_id"]),
-                str(
-                    v["array_job_id"]["number"]
-                    if v["array_job_id"]["set"] and v["array_job_id"]["number"] != 0
-                    else ""
-                ),
-                str(v["array_task_id"]["number"] if v["array_task_id"]["set"] else ""),
-                str(v["name"])[0:50],
-                str(v["job_resources"].get("nodes", ""))[0:25],
-                str(v["partition"]),
-                start_time_string,
-                end_time_string,
-                get_rich_state(job_state),
-                str(v["state_reason"]) if v["state_reason"] != "None" else "",
-                str(v["account"]),
-            ]
+            _columns = [str(v["job_id"])]
+            if job_array_exists:
+                _columns.extend(
+                    [
+                        str(
+                            v["array_job_id"]["number"]
+                            if v["array_job_id"]["set"]
+                            and v["array_job_id"]["number"] != 0
+                            else ""
+                        ),
+                        str(
+                            v["array_task_id"]["number"]
+                            if v["array_task_id"]["set"]
+                            else ""
+                        ),
+                    ]
+                )
+            _columns.extend(
+                [
+                    str(v["name"])[0:50],
+                    str(v["job_resources"].get("nodes", ""))[0:25],
+                    str(v["partition"]),
+                    start_time_string,
+                    end_time_string,
+                    get_rich_state(job_state),
+                ]
+            )
+            if job_reason_exists:
+                _columns.append(
+                    str(v["state_reason"]) if v["state_reason"] != "None" else ""
+                )
+            _columns.append(str(v["account"]))
+
             if settings.CHECK_ALL_JOBS:
                 _columns.append(str(v["user_name"]))
             job_table.add_row(*_columns, key=str(k))
@@ -637,7 +612,6 @@ def slurmcommand_executor(slurm_return: SlurmTUIReturn, mock=settings.MOCK) -> N
 
 
 def main():
-
     parser = argparse.ArgumentParser(description="SlurmTUI")
     parser.add_argument(
         "--update_interval", type=int, help="Update interval", default=None

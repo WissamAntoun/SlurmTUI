@@ -5,6 +5,7 @@ import subprocess
 import sys
 from ast import literal_eval
 from functools import lru_cache
+from typing import Dict
 
 from .utils import SETTINGS, console
 
@@ -391,7 +392,7 @@ def get_user():
 def get_running_jobs(
     settings: SETTINGS,
     no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]",
-):
+) -> Dict[int, Dict]:
     if settings.MOCK:
         running_jobs = get_fake_squeue(settings.FAKE_QUEUE_JSON_PATH)
     else:
@@ -462,3 +463,96 @@ def check_for_state(job_state: str, state_to_check: str):
         return any([check_for_state(s, state_to_check) for s in job_state])
     else:
         return job_state == state_to_check
+
+
+def format_time_string(time_delta: datetime.timedelta) -> str:
+    days = time_delta.days
+    hours, remainder = divmod(time_delta.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    time_string = ""
+    if days > 0:
+        fraction_of_day = days + round(time_delta.seconds / 86400, 1)
+        time_string += f"{fraction_of_day} days"
+        return time_string
+    if hours > 0:
+        fraction_of_hour = round(time_delta.seconds / 3600, 1)
+        time_string += f"{fraction_of_hour} hrs"
+        return time_string
+    if minutes > 0:
+        fraction_of_minute = round(time_delta.seconds / 60, 1)
+        time_string += f"{fraction_of_minute} mins"
+        return time_string
+    if seconds > 0:
+        time_string += f"{seconds} secs"
+        return time_string
+    return time_string
+
+
+def get_start_and_end_time_string(
+    submit_time, start_time, end_time, job_state, settings: SETTINGS
+) -> str:
+    submit_time = get_time(submit_time)
+    start_time = get_time(start_time)
+    end_time = get_time(end_time)
+
+    submit_time_string = ""
+    start_time_string = ""
+    end_time_string = ""
+
+    if submit_time:
+        # submit_time_string = str(datetime.datetime.fromtimestamp(submit_time))
+        submit_time_string = datetime.datetime.fromtimestamp(submit_time).strftime(
+            "%y-%m-%d %H:%M:%S"
+        )
+    if start_time:
+        start_time_string = datetime.datetime.fromtimestamp(start_time).strftime(
+            "%y-%m-%d %H:%M:%S"
+        )
+    if end_time:
+        end_time_string = datetime.datetime.fromtimestamp(end_time).strftime(
+            "%y-%m-%d %H:%M:%S"
+        )
+
+    if not check_for_state(job_state, "PENDING") and end_time:
+        time_remaining = datetime.datetime.fromtimestamp(end_time) - get_datetime_now(
+            settings
+        )
+        # check if time remaining is positive
+        # TypeError: '>' not supported between instances of 'datetime.timedelta' and 'int'
+        if time_remaining.days >= 0:
+            end_time_string += " (in " + format_time_string(time_remaining) + ")"
+
+    if check_for_state(job_state, "PENDING"):
+        if start_time:
+            time_till_start = datetime.datetime.fromtimestamp(
+                start_time
+            ) - get_datetime_now(settings)
+            if time_till_start.days >= 0:
+                start_time_string += " (in " + format_time_string(time_till_start) + ")"
+        elif submit_time:
+            time_since_submit = get_datetime_now(
+                settings
+            ) - datetime.datetime.fromtimestamp(submit_time)
+            if time_since_submit.days >= 0:
+                submit_time_string += (
+                    " (sub. " + format_time_string(time_since_submit) + " ago)"
+                )
+                start_time_string = submit_time_string
+        else:
+            pass
+
+    return start_time_string, end_time_string
+
+
+def check_for_any_job_array(jobs_dict):
+    return any(
+        [
+            (job["array_job_id"]["set"] and job["array_job_id"]["number"] != 0)
+            or job["array_task_id"]["set"]
+            for job in jobs_dict.values()
+        ]
+    )
+
+
+def check_for_job_state_reason(jobs_dict):
+    return any([job["state_reason"] != "None" for job in jobs_dict.values()])
