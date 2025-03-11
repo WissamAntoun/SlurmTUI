@@ -669,34 +669,6 @@ def main():
     if args.acc:
         settings.ACCOUNTS = args.acc.split(",")
 
-    if not settings.MOCK:
-        # check if squeue is available
-        # check if squeue version is 21.08 or higher
-        try:
-            squeue_version = subprocess.run(
-                ["squeue", "--version"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            ).stdout
-        except FileNotFoundError:
-            console.print(
-                "squeue command not found, please make sure Slurm is installed and squeue is in your PATH",
-                style="red",
-            )
-            sys.exit(1)
-        try:
-            squeue_version = squeue_version.split()[1]
-            if Version(squeue_version) < Version("21.08"):
-                console.print(
-                    "squeue version must be 21.08 or higher, please update Slurm"
-                    f" (current version: {squeue_version})",
-                    style="red",
-                )
-                sys.exit(1)
-        except:
-            pass
-
     while True:
         app = SlurmTUI()
         reply = app.run()
