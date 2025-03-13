@@ -29,6 +29,17 @@ slurmtui --account my_account
 
 ![jobui](./img/screenshot.png)
 
+# List of planned features (not in the priority order):
+
+- [ ] View old jobs
+- [ ] Filtering jobs when launching
+- [ ] Sorting
+- [ ] Options other than tail for logs
+- [x] Faster launch
+- [x] Remove Array columns if no job array exists
+- [ ] Search
+- [ ] Display used/available resources
+
 # FAQ
 
 ### How to select text in the App?
