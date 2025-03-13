@@ -272,9 +272,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
         job_reason_exists = check_for_job_state_reason(self.running_jobs_dict)
 
         job_table.clear()
+        column_manager = ColumnManager(DEFAULT_COLUMNS)
         if self.first_display:
             job_table.cursor_type = "row"
-            column_manager = ColumnManager(DEFAULT_COLUMNS)
             if settings.CHECK_ALL_JOBS:
                 column_manager.enable_column("User")
             else:
