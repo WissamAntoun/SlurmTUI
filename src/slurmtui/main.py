@@ -291,6 +291,8 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 column_manager.disable_column("State Reason")
 
             job_table.add_columns(*column_manager.get_enabled_columns())
+            # here for debugging purposes
+            enabled_columns = column_manager.get_enabled_columns()
             self.first_display = False
 
         # if a job has been deleted, remove it from jobs_to_be_deleted
