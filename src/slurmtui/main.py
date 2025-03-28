@@ -255,7 +255,6 @@ class SlurmTUI(App[SlurmTUIReturn]):
         Binding("q", "quit", "Quit", key_display="Q"),
     ]
 
-    first_display = True
     job_table = None
     jobs_to_be_deleted = []
 
@@ -271,29 +270,25 @@ class SlurmTUI(App[SlurmTUIReturn]):
         job_array_exists = check_for_any_job_array(self.running_jobs_dict)
         job_reason_exists = check_for_job_state_reason(self.running_jobs_dict)
 
-        job_table.clear()
+        job_table.clear(columns=True)
         column_manager = ColumnManager(DEFAULT_COLUMNS)
-        if self.first_display:
-            job_table.cursor_type = "row"
-            if settings.CHECK_ALL_JOBS:
-                column_manager.enable_column("User")
-            else:
-                column_manager.disable_column("User")
-            if job_array_exists:
-                column_manager.enable_column("Arr. ID")
-                column_manager.enable_column("Arr. Idx")
-            else:
-                column_manager.disable_column("Arr. ID")
-                column_manager.disable_column("Arr. Idx")
-            if job_reason_exists:
-                column_manager.enable_column("State Reason")
-            else:
-                column_manager.disable_column("State Reason")
+        job_table.cursor_type = "row"
+        if settings.CHECK_ALL_JOBS:
+            column_manager.enable_column("User")
+        else:
+            column_manager.disable_column("User")
+        if job_array_exists:
+            column_manager.enable_column("Arr. ID")
+            column_manager.enable_column("Arr. Idx")
+        else:
+            column_manager.disable_column("Arr. ID")
+            column_manager.disable_column("Arr. Idx")
+        if job_reason_exists:
+            column_manager.enable_column("State Reason")
+        else:
+            column_manager.disable_column("State Reason")
 
-            job_table.add_columns(*column_manager.get_enabled_columns())
-            # here for debugging purposes
-            enabled_columns = column_manager.get_enabled_columns()
-            self.first_display = False
+        job_table.add_columns(*column_manager.get_enabled_columns())
 
         # if a job has been deleted, remove it from jobs_to_be_deleted
         if (
