@@ -24,7 +24,7 @@ from .settings import get_settings_screen
 from .utils import ColumnManager
 
 OLD_SCREEN_BINDINGS = [
-    Binding("escape", "app.pop_screen", "Go Back", key_display="Esc"),
+    Binding("escape", "screen.dismiss", "Go Back", key_display="Esc"),
     Binding("l", "logs_out", "Logs (STDOUT)", key_display="L"),
     Binding("e", "logs_err", "Logs (STDERR)", key_display="E"),
     Binding("i", "info", "Info", key_display="I"),
@@ -196,9 +196,10 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
             )
 
 
+
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
-            yield DataTable(zebra_stripes=True, name="job_table", id="job_table")
+            yield DataTable(zebra_stripes=True, name="old_job_table", id="old_job_table")
             yield Footer()
 
 

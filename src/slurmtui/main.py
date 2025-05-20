@@ -1,13 +1,17 @@
 import argparse
+import datetime
 import os
 import sys
-from typing import Any, Dict
+from typing import Any, Callable, Dict
+from weakref import WeakSet
 
 from rich import print_json
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.coordinate import Coordinate
 from textual.css.query import NoMatches
+from textual.timer import Timer
 from textual.widgets import DataTable, Footer, Header
 
 from .screens import (
@@ -402,10 +406,19 @@ class SlurmTUI(App[SlurmTUIReturn]):
         info_screen = get_info_screen(self.BINDINGS)
         self.push_screen(info_screen(selected_job), print_cli)
 
-    def action_old_jobs(self) -> None:
+    @work
+    async def action_old_jobs(self) -> None:
         """Show the old jobs."""
+        for timer in self._timers:
+            timer.stop()
+        self._timers.clear()
+        self._timers = WeakSet()
         old_jobs_screen = get_old_jobs_screen(self.BINDINGS)
-        self.push_screen(old_jobs_screen(settings=settings))
+        await self.push_screen_wait(old_jobs_screen(settings=settings))
+        self.set_timer(
+            settings.UPDATE_INTERVAL, self._update_job_table
+        )
+
 
     def action_quit(self) -> None:
         """Quit the application."""
