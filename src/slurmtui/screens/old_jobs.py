@@ -234,14 +234,14 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
 
             # check if standard output or standard error in the selected job
             if is_std_out:
-                if "standard_output" not in selected_job:
+                if selected_job.get("stdout_expanded", ""):
                     self.notify(
                         f"Job {selected_job['job_id']} has no standard output!. This may be due to slurm version being < 24.05",
                         severity="warning",
                     )
                     return
             else:
-                if "standard_error" not in selected_job:
+                if selected_job.get("stderr_expanded", ""):
                     self.notify(
                         f"Job {selected_job['job_id']} has no standard error!. This may be due to slurm version being < 24.05",
                         severity="warning",
@@ -249,7 +249,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
                     return
 
             log_path = os.path.join(
-                selected_job["standard_output" if is_std_out else "standard_error"],
+                selected_job["stdout_expanded" if is_std_out else "stderr_expanded"],
             )
 
             # check if the log file exists
