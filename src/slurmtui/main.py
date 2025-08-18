@@ -312,7 +312,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
             if delete_array:
                 os.system(f"scancel {selected_job['array_job_id']['number']}")
             else:
-                os.system(f"scancel {selected_job['job_id']}")
+                if selected_job['array_job_id']['number'] == selected_job['job_id']:
+                    os.system(f"scancel {selected_job['job_id']}_{selected_job['array_task_id']['number']}")
+                else:
+                    os.system(f"scancel {selected_job['job_id']}")
 
     def _check_job_is_array(self, selected_job: Dict[str, Any]) -> bool:
         """Check if the selected job is an array job."""
