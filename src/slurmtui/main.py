@@ -26,7 +26,6 @@ from .slurm_utils import (
     check_for_any_job_array,
     check_for_job_state_reason,
     check_for_state,
-    get_job_resources,
     get_rich_state,
     get_running_jobs,
     get_start_and_end_time_string,
