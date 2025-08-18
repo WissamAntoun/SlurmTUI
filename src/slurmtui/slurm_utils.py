@@ -610,6 +610,9 @@ def check_for_any_old_job_array(jobs_dict):
 def check_for_job_state_reason(jobs_dict):
     return any([job["state_reason"] != "None" for job in jobs_dict.values()])
 
+def get_job_resources(job_dict):
+    return job_dict.get("job_resources", {}) or {}
+
 class SlurmTUIReturn:
     """Return value for SlurmTUI."""
 
