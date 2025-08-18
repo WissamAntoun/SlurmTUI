@@ -161,7 +161,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             _columns.extend(
                 [
                     str(v["name"])[0:50],
-                    str(get_job_resources(v).get("nodes", ""))[0:25],
+                    str(v.get("nodes", ""))[0:25],
                     str(v["partition"]),
                     start_time_string,
                     end_time_string,
@@ -377,7 +377,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         # add the id and the name of the job to the message
         delete_message += f"Job ID: {selected_job['job_id']}\n"
         delete_message += f"Job Name: {selected_job['name']}\n"
-        node_name = str(get_job_resources(selected_job).get("nodes", ""))[0:25]
+        node_name = str(selected_job.get("nodes", ""))[0:25]
         if node_name:
             delete_message += f"Node Name: {node_name}\n"
         confirm_screen = get_confirm_screen(self.BINDINGS)
