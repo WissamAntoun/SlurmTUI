@@ -260,7 +260,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
                 )
                 return
 
-            with self.suspend():
+            with self.app.suspend():
                 os.system(f"tail -n 10000 -f {log_path}")
 
             self.refresh()
