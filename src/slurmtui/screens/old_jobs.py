@@ -234,14 +234,14 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
 
             # check if standard output or standard error in the selected job
             if is_std_out:
-                if selected_job.get("stdout_expanded", ""):
+                if not selected_job.get("stdout_expanded", ""):
                     self.notify(
                         f"Job {selected_job['job_id']} has no standard output!. This may be due to slurm version being < 24.05",
                         severity="warning",
                     )
                     return
             else:
-                if selected_job.get("stderr_expanded", ""):
+                if not selected_job.get("stderr_expanded", ""):
                     self.notify(
                         f"Job {selected_job['job_id']} has no standard error!. This may be due to slurm version being < 24.05",
                         severity="warning",
