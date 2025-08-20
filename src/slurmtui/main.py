@@ -2,15 +2,16 @@ import argparse
 import datetime
 import os
 import sys
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Iterable
 from weakref import WeakSet
 
 from rich import print_json
 from textual import on, work
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
 from textual.coordinate import Coordinate
 from textual.css.query import NoMatches
+from textual.screen import Screen
 from textual.timer import Timer
 from textual.widgets import DataTable, Footer, Header
 
@@ -59,6 +60,8 @@ class SlurmTUI(App[SlurmTUIReturn]):
     """
 
     CSS_PATH = "css/slurmtui.css"
+
+    # ENABLE_COMMAND_PALETTE = False
 
     BINDINGS = [
         Binding("l", "logs_out", "Logs (STDOUT)", key_display="L"),
@@ -430,6 +433,50 @@ class SlurmTUI(App[SlurmTUIReturn]):
     def action_quit(self) -> None:
         """Quit the application."""
         self.exit(SlurmTUIReturn("quit", {}))
+
+    def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        """Overrides the default system commands to and removes the theme selector."""
+        yield SystemCommand(
+            "Settings",
+            "Open the settings screen to change SlurmTUI settings",
+            self.action_settings,
+        )
+
+        yield SystemCommand(
+            "Quit the application",
+            "Quit the application as soon as possible",
+            self.action_quit,
+        )
+
+        if screen.query("HelpPanel"):
+            yield SystemCommand(
+                "Hide keys and help panel",
+                "Hide the keys and widget help panel",
+                self.action_hide_help_panel,
+            )
+        else:
+            yield SystemCommand(
+                "Show keys and help panel",
+                "Show help for the focused widget and a summary of available keys",
+                self.action_show_help_panel,
+            )
+
+        if screen.maximized is not None:
+            yield SystemCommand(
+                "Minimize",
+                "Minimize the widget and restore to normal size",
+                screen.action_minimize,
+            )
+        elif screen.focused is not None and screen.focused.allow_maximize:
+            yield SystemCommand(
+                "Maximize", "Maximize the focused widget", screen.action_maximize
+            )
+
+        yield SystemCommand(
+            "Save screenshot",
+            "Save an SVG 'screenshot' of the current screen",
+            self.deliver_screenshot,
+        )
 
 
 def slurmcommand_executor(slurm_return: SlurmTUIReturn, mock=settings.MOCK) -> None:
