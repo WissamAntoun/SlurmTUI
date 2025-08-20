@@ -1,4 +1,11 @@
+import os
+import sys
+
 from setuptools import find_packages, setup
+
+# Add src directory to path to import version
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+from slurmtui._version import __author__, __author_email__, __version__
 
 requirements = ["rich==13.4.2", "textual==1.0.0"]
 
@@ -12,9 +19,9 @@ def get_long_description():
 
 setup(
     name="slurmtui",
-    version="0.3.1",
-    author="Wissam Antoun",
-    author_email="wissam.antoun@gmail.com",
+    version=__version__,
+    author=__author__,
+    author_email=__author_email__,
     description="A simple Terminal UI (TUI) for Slurm",
     long_description=get_long_description().replace(
         "./img/screenshot.png",
