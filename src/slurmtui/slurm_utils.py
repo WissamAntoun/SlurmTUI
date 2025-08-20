@@ -388,6 +388,11 @@ def get_datetime_now(settings: SETTINGS):
 def get_user():
     return os.getenv("USER", os.getenv("USERNAME", "unknown"))
 
+class CommandNotFoundError(Exception):
+    """Exception raised when a command is not found."""
+    def __init__(self, message="Command not found."):
+        super().__init__()
+        self.message = message
 
 def get_running_jobs(
     settings: SETTINGS,
@@ -415,6 +420,11 @@ def get_running_jobs(
         except subprocess.CalledProcessError as e:
             console.print(no_jobs_msg)
             return None
+        except FileNotFoundError as e:
+            console.print(
+                "squeue command not found. Please make sure Slurm is installed and configured correctly."
+            )
+            return CommandNotFoundError("`squeue` command not found")
 
     squeue_load = json.loads(running_jobs)
 
@@ -429,47 +439,54 @@ def get_running_jobs(
     return running_jobs_dict
 
 
+
 def get_old_jobs(
-  settings: SETTINGS,
-  start_time: datetime.datetime = None,
-  end_time: datetime.datetime = None,
-  no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]",
-  ) -> Dict[int, Dict]:
-  if settings.MOCK:
-    old_jobs = get_fake_squeue(settings.DEBUG_SACCT_JSON_PATH)
-  else:
-    try:
-      start_time = start_time or settings.OLD_JOB_START_TIME or "now-7days"
-      end_time = end_time or settings.OLD_JOB_END_TIME or "now"
+    settings: SETTINGS,
+    start_time: datetime.datetime = None,
+    end_time: datetime.datetime = None,
+    no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]",
+) -> Dict[int, Dict]:
+    if settings.MOCK:
+        old_jobs = get_fake_squeue(settings.DEBUG_SACCT_JSON_PATH)
+    else:
+        try:
+            start_time = start_time or settings.OLD_JOB_START_TIME or "now-7days"
+            end_time = end_time or settings.OLD_JOB_END_TIME or "now"
 
-      cmd = [
-        "sacct",
-        "--json",
-        "--starttime",
-        start_time,
-        "--endtime",
-        end_time,
-      ]
-      if settings.SQUEUE_ARGS:
-        cmd.extend(settings.SQUEUE_ARGS)
-      old_jobs = subprocess.check_output(
-        cmd,
-        stderr=subprocess.DEVNULL,
-      ).decode("utf-8")
-    except subprocess.CalledProcessError as e:
-      console.print(no_jobs_msg)
-      return None
-  sacct_load = json.loads(old_jobs)
-  if settings.ACCOUNTS:
-    sacct_load["jobs"] = [
-      job for job in sacct_load["jobs"] if job["account"] in settings.ACCOUNTS
-    ]
-  old_jobs = sacct_load["jobs"]
-  # sort inversely by job id
-  old_jobs = sorted(old_jobs, key=lambda k: k["job_id"], reverse=True)
+            cmd = [
+                "sacct",
+                "--json",
+                "--starttime",
+                start_time,
+                "--endtime",
+                end_time,
+            ]
+            if settings.SQUEUE_ARGS:
+                cmd.extend(settings.SQUEUE_ARGS)
+            old_jobs = subprocess.check_output(
+                cmd,
+                stderr=subprocess.DEVNULL,
+            ).decode("utf-8")
+        except subprocess.CalledProcessError as e:
+            console.print(no_jobs_msg)
+            return None
+        except FileNotFoundError as e:
+            console.print(
+                "sacct command not found. Please make sure Slurm is installed and configured correctly."
+            )
+            return CommandNotFoundError("`sacct` command not found")
 
-  old_jobs = {item["job_id"]: item for item in old_jobs}
-  return old_jobs
+    sacct_load = json.loads(old_jobs)
+    if settings.ACCOUNTS:
+        sacct_load["jobs"] = [
+            job for job in sacct_load["jobs"] if job["account"] in settings.ACCOUNTS
+        ]
+    old_jobs = sacct_load["jobs"]
+    # sort inversely by job id
+    old_jobs = sorted(old_jobs, key=lambda k: k["job_id"], reverse=True)
+
+    old_jobs = {item["job_id"]: item for item in old_jobs}
+    return old_jobs
 
 
 def get_rich_state(state: str):
@@ -598,10 +615,11 @@ def check_for_any_job_array(jobs_dict):
         ]
     )
 
+
 def check_for_any_old_job_array(jobs_dict):
     return any(
         [
-            (job["array"]['task_id']["set"] and job["array"]['task_id']["number"] != 0)
+            (job["array"]["task_id"]["set"] and job["array"]["task_id"]["number"] != 0)
             for job in jobs_dict.values()
         ]
     )
@@ -610,8 +628,10 @@ def check_for_any_old_job_array(jobs_dict):
 def check_for_job_state_reason(jobs_dict):
     return any([job["state_reason"] != "None" for job in jobs_dict.values()])
 
+
 def get_job_resources(job_dict):
     return job_dict.get("job_resources", {}) or {}
+
 
 class SlurmTUIReturn:
     """Return value for SlurmTUI."""

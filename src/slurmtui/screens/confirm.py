@@ -1,4 +1,3 @@
-
 from typing import Any, List
 
 from textual.app import ComposeResult
@@ -36,7 +35,6 @@ def get_confirm_screen(OLD_BINDINGS: List[Binding]):
                         False,
                     )
                 )
-
 
     class ConfirmScreen(Screen[bool]):
         """Screen with confirm a dialog."""

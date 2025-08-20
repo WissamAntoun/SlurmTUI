@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List
 
 from rich.console import Console
+from textual.theme import BUILTIN_THEMES
 
 console = Console(stderr=True)
 
@@ -17,6 +18,10 @@ if os.environ.get("SLURMTUI_SETTINGS"):
 @dataclass
 class SETTINGS:
     MOCK: bool = field(default=False, metadata="Use mock data for testing")
+    THEME: str = field(
+        default="textual-dark",
+        metadata=f"Theme name to use one of {list(BUILTIN_THEMES.keys())}",
+    )
     UPDATE_INTERVAL: int = field(
         default=10,
         metadata="Update interval in seconds. Will be multiplied by 5 if CHECK_ALL_JOBS is True",

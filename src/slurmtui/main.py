@@ -22,6 +22,7 @@ from .screens import (
 )
 from .screens.utils import ColumnManager
 from .slurm_utils import (
+    CommandNotFoundError,
     SlurmTUIReturn,
     check_for_any_job_array,
     check_for_job_state_reason,
@@ -82,6 +83,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         old_cursor = job_table.cursor_coordinate
         self.running_jobs_dict = get_running_jobs(settings=settings)
+        if isinstance(self.running_jobs_dict, CommandNotFoundError):
+            self.exit(SlurmTUIReturn("print", {"string_to_print": self.running_jobs_dict.message}), return_code=1)
+            return
+
         job_array_exists = check_for_any_job_array(self.running_jobs_dict)
         job_reason_exists = check_for_job_state_reason(self.running_jobs_dict)
 
@@ -204,6 +209,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
 
     def on_mount(self) -> None:
+        self.theme = settings.THEME
         self._display_job_table()
         self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
 
@@ -258,7 +264,6 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         self.refresh()
 
-
     def action_logs_out(self) -> None:
         """Show the logs (STDOUT)."""
         # get the id of the selected job
@@ -311,8 +316,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
             if delete_array:
                 os.system(f"scancel {selected_job['array_job_id']['number']}")
             else:
-                if selected_job['array_job_id']['number'] == selected_job['job_id']:
-                    os.system(f"scancel {selected_job['job_id']}_{selected_job['array_task_id']['number']}")
+                if selected_job["array_job_id"]["number"] == selected_job["job_id"]:
+                    os.system(
+                        f"scancel {selected_job['job_id']}_{selected_job['array_task_id']['number']}"
+                    )
                 else:
                     os.system(f"scancel {selected_job['job_id']}")
 
@@ -404,7 +411,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         def print_cli(string_to_print: str) -> None:
             """Print the string to the CLI."""
-            self.exit(SlurmTUIReturn("print", {"string_to_print": string_to_print}))
+            self.exit(SlurmTUIReturn("print_json", {"string_to_print": string_to_print}))
 
         info_screen = get_info_screen(self.BINDINGS)
         self.push_screen(info_screen(selected_job), print_cli)
@@ -418,10 +425,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         self._timers = WeakSet()
         old_jobs_screen = get_old_jobs_screen(self.BINDINGS)
         await self.push_screen_wait(old_jobs_screen(settings=settings))
-        self.set_timer(
-            settings.UPDATE_INTERVAL, self._update_job_table
-        )
-
+        self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
 
     def action_quit(self) -> None:
         """Quit the application."""
@@ -436,8 +440,11 @@ def slurmcommand_executor(slurm_return: SlurmTUIReturn, mock=settings.MOCK) -> N
             os.system(
                 f"ssh -o StrictHostKeyChecking=no {slurm_return.extra['batch_host']}"
             )
-    elif slurm_return.action == "print":
+    elif slurm_return.action == "print_json":
         print_json(slurm_return.extra["string_to_print"])
+    elif slurm_return.action == "print":
+        print(slurm_return.extra["string_to_print"])
+        sys.exit(0)
     elif slurm_return.action == "quit":
         sys.exit(0)
     else:

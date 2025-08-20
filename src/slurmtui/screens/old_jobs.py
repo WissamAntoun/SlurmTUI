@@ -50,9 +50,9 @@ DEFAULT_COLUMNS = {
 
 def get_time_strings(job: Dict[str, Any]) -> Tuple[str, str, str]:
 
-    submit_time = job['time']['submission']
-    start_time = job['time']['start']
-    end_time = job['time']['end']
+    submit_time = job["time"]["submission"]
+    start_time = job["time"]["start"]
+    end_time = job["time"]["end"]
 
     submit_time_string = ""
     start_time_string = ""
@@ -67,14 +67,18 @@ def get_time_strings(job: Dict[str, Any]) -> Tuple[str, str, str]:
         start_time_string = datetime.datetime.fromtimestamp(start_time).strftime(
             "%y-%m-%d %H:%M:%S"
         )
-        started_after = datetime.datetime.fromtimestamp(start_time) - datetime.datetime.fromtimestamp(submit_time)
+        started_after = datetime.datetime.fromtimestamp(
+            start_time
+        ) - datetime.datetime.fromtimestamp(submit_time)
         start_time_string += f" +{format_time_string(started_after)}"
 
     if end_time:
         end_time_string = datetime.datetime.fromtimestamp(end_time).strftime(
             "%y-%m-%d %H:%M:%S"
         )
-        ended_after = datetime.datetime.fromtimestamp(end_time) - datetime.datetime.fromtimestamp(start_time)
+        ended_after = datetime.datetime.fromtimestamp(
+            end_time
+        ) - datetime.datetime.fromtimestamp(start_time)
         if end_time > start_time:
             end_time_string += f" +{format_time_string(ended_after)}"
         else:
@@ -104,7 +108,6 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
                         False,
                     )
                 )
-
 
     class OldJobsScreen(Screen):
 
@@ -160,14 +163,20 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
                 return
 
             for idx, (k, v) in enumerate(self.old_jobs.items()):
-                submit_time_string, start_time_string, end_time_string = get_time_strings(v)
+                submit_time_string, start_time_string, end_time_string = (
+                    get_time_strings(v)
+                )
 
                 _columns = [str(v["job_id"])]
                 if job_array_exists:
                     _columns.extend(
                         [
                             str(v["array"]["job_id"]) if v["array"]["job_id"] else "",
-                            str(v["array"]["task_id"]["number"]) if v["array"]["task_id"]["set"] else "",
+                            (
+                                str(v["array"]["task_id"]["number"])
+                                if v["array"]["task_id"]["set"]
+                                else ""
+                            ),
                         ]
                     )
                 _columns.extend(
@@ -195,13 +204,12 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
                 else Coordinate(row=len(self.old_jobs) - 1, column=0)
             )
 
-
-
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
-            yield DataTable(zebra_stripes=True, name="old_job_table", id="old_job_table")
+            yield DataTable(
+                zebra_stripes=True, name="old_job_table", id="old_job_table"
+            )
             yield Footer()
-
 
         def _check_no_jobs(self) -> bool:
             if self.old_jobs is None or len(self.old_jobs) == 0:
@@ -221,9 +229,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
             if self._check_no_jobs():
                 return
 
-            selected_job = list(self.old_jobs.values())[
-                job_table.cursor_coordinate.row
-            ]
+            selected_job = list(self.old_jobs.values())[job_table.cursor_coordinate.row]
 
             if check_for_state(selected_job["state"]["current"], "PENDING"):
                 self.notify(
@@ -291,9 +297,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
             except NoMatches:
                 job_table = self.job_table
 
-            selected_job = list(self.old_jobs.values())[
-                job_table.cursor_coordinate.row
-            ]
+            selected_job = list(self.old_jobs.values())[job_table.cursor_coordinate.row]
 
             def print_cli(string_to_print: str) -> None:
                 """Print the string to the CLI."""
@@ -305,6 +309,5 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
         # def action_quit(self) -> None:
         #     """Quit the application."""
         #     self.exit(SlurmTUIReturn("quit", {}))
-
 
     return OldJobsScreen

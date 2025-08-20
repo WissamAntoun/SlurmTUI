@@ -52,6 +52,38 @@ ConfirmScreen {
 }
 
 .settings_row {
-    height: 30;
-    width: auto;
+    height: 4;
+    content-align: center middle;
 }
+
+.settings_label {
+    height: 4;
+    width: 25;
+    content-align: left middle;
+}
+
+.settings_button {
+    height: 3;
+    width: 30;
+    content-align: center middle;
+    margin: 0 0 0 2;
+}
+
+#label_THEME_VALUE {
+    height: 3;
+    width: 30;
+    content-align: center middle;
+    border: round blue;
+}
+
+.settings_input {
+    width: 30;
+}
+
+/* #button_THEME {
+    height: 3;
+    width: 30;
+    content-align: center middle;
+    align-vertical: middle;
+    margin: 0 1;
+} */

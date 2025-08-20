@@ -45,7 +45,11 @@ def get_info_screen(OLD_BINDINGS: List[Binding]):
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True, name="slurm Job Info", id="info_header")
             yield RichLog(
-                highlight=True, markup=False, auto_scroll=False, wrap=True, id="info_text"
+                highlight=True,
+                markup=False,
+                auto_scroll=False,
+                wrap=True,
+                id="info_text",
             )
             yield Footer()
 
