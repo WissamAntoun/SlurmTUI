@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List
 
 from rich.console import Console
+from textual.theme import BUILTIN_THEMES
 
 console = Console(stderr=True)
 
@@ -17,20 +18,35 @@ if os.environ.get("SLURMTUI_SETTINGS"):
 @dataclass
 class SETTINGS:
     MOCK: bool = field(default=False, metadata="Use mock data for testing")
+    THEME: str = field(
+        default="textual-dark",
+        metadata=f"Theme name to use one of {list(BUILTIN_THEMES.keys())}",
+    )
     UPDATE_INTERVAL: int = field(
         default=10,
         metadata="Update interval in seconds. Will be multiplied by 5 if CHECK_ALL_JOBS is True",
     )
     CHECK_ALL_JOBS: bool = field(default=False, metadata="Check all jobs in the queue")
-    FAKE_QUEUE_JSON_PATH: str = field(
-        default=None, metadata="Path to the fake queue JSON file"
-    )
     SQUEUE_ARGS: List[str] = field(
         default=None, metadata="List of additional arguments to pass to squeue"
     )
     ACCOUNTS: List[str] = field(
         default=None,
         metadata="List of accounts to filter the jobs by since squeue --json has a bug on version < 24.05.1.",
+    )
+    OLD_JOBS_END_TIME: str = field(
+        default="now",
+        metadata="End time for the old jobs query. now[{+|-}count[seconds(default)|minutes|hours|days|weeks]] or check on https://slurm.schedmd.com/sacct.html for more info",
+    )
+    OLD_JOBS_START_TIME: str = field(
+        default="now-7days",
+        metadata="Start time for the old jobs query. now[{+|-}count[seconds(default)|minutes|hours|days|weeks]] or check on https://slurm.schedmd.com/sacct.html for more info",
+    )
+    DEBUG_SQUEUE_JSON_PATH: str = field(
+        default=None, metadata="Path to the debug squeue json file"
+    )
+    DEBUG_SACCT_JSON_PATH: str = field(
+        default=None, metadata="Path to the debug sacct json file"
     )
 
     def __post_init__(self):
@@ -68,8 +84,18 @@ class SETTINGS:
         if SETTINGS_FILE.exists():
             with open(SETTINGS_FILE, "r") as f:
                 settings = json.load(f)
-                settings = SETTINGS.validate(settings)
-                return SETTINGS(**settings)
+                if "DEBUG_SQUEUE_JSON_PATH" not in settings:
+                    settings["DEBUG_SQUEUE_JSON_PATH"] = settings.get(
+                        "FAKE_QUEUE_JSON_PATH", None
+                    )
+                    _ = settings.pop("FAKE_QUEUE_JSON_PATH", None)
+                    settings = SETTINGS.validate(settings)
+                    settings = SETTINGS(**settings)
+                    settings.save()
+                else:
+                    settings = SETTINGS.validate(settings)
+                    settings = SETTINGS(**settings)
+                return settings
         else:
             console.print(
                 "Settings file not found. Using default settingsuration."
@@ -82,3 +108,8 @@ class SETTINGS:
     @staticmethod
     def get_fields_descriptions():
         return {field.name: field.metadata for field in fields(SETTINGS)}
+
+
+global settings
+
+settings = SETTINGS().load()

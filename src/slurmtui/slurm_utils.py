@@ -5,7 +5,7 @@ import subprocess
 import sys
 from ast import literal_eval
 from functools import lru_cache
-from typing import Dict
+from typing import Any, Dict
 
 from .utils import SETTINGS, console
 
@@ -351,9 +351,9 @@ fake_squeue = """{
 """
 
 
-def get_fake_squeue(fake_queue_json_path: str = None):
-    if fake_queue_json_path:
-        with open(fake_queue_json_path, "r") as f:
+def get_fake_squeue(debug_squeue_json_path: str = None):
+    if debug_squeue_json_path:
+        with open(debug_squeue_json_path, "r") as f:
             return f.read()
     else:
         return fake_squeue
@@ -370,7 +370,7 @@ def get_time(time_field) -> str:
 
 @lru_cache
 def get_fake_latest_time(settings: SETTINGS):
-    all_jobs = json.loads(get_fake_squeue(settings.FAKE_QUEUE_JSON_PATH))["jobs"]
+    all_jobs = json.loads(get_fake_squeue(settings.DEBUG_SQUEUE_JSON_PATH))["jobs"]
     latest_job = sorted(all_jobs, key=lambda k: get_time(k["submit_time"]))[-1]
     latest_time = get_time(latest_job["submit_time"])
     return latest_time
@@ -388,13 +388,18 @@ def get_datetime_now(settings: SETTINGS):
 def get_user():
     return os.getenv("USER", os.getenv("USERNAME", "unknown"))
 
+class CommandNotFoundError(Exception):
+    """Exception raised when a command is not found."""
+    def __init__(self, message="Command not found."):
+        super().__init__()
+        self.message = message
 
 def get_running_jobs(
     settings: SETTINGS,
     no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]",
 ) -> Dict[int, Dict]:
     if settings.MOCK:
-        running_jobs = get_fake_squeue(settings.FAKE_QUEUE_JSON_PATH)
+        running_jobs = get_fake_squeue(settings.DEBUG_SQUEUE_JSON_PATH)
     else:
         try:
             if settings.CHECK_ALL_JOBS:
@@ -415,6 +420,11 @@ def get_running_jobs(
         except subprocess.CalledProcessError as e:
             console.print(no_jobs_msg)
             return None
+        except FileNotFoundError as e:
+            console.print(
+                "squeue command not found. Please make sure Slurm is installed and configured correctly."
+            )
+            return CommandNotFoundError("`squeue` command not found")
 
     squeue_load = json.loads(running_jobs)
 
@@ -429,14 +439,66 @@ def get_running_jobs(
     return running_jobs_dict
 
 
+
+def get_old_jobs(
+    settings: SETTINGS,
+    start_time: datetime.datetime = None,
+    end_time: datetime.datetime = None,
+    no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]",
+) -> Dict[int, Dict]:
+    if settings.MOCK:
+        old_jobs = get_fake_squeue(settings.DEBUG_SACCT_JSON_PATH)
+    else:
+        try:
+            start_time = start_time or settings.OLD_JOB_START_TIME or "now-7days"
+            end_time = end_time or settings.OLD_JOB_END_TIME or "now"
+
+            cmd = [
+                "sacct",
+                "--json",
+                "--starttime",
+                start_time,
+                "--endtime",
+                end_time,
+            ]
+            if settings.SQUEUE_ARGS:
+                cmd.extend(settings.SQUEUE_ARGS)
+            old_jobs = subprocess.check_output(
+                cmd,
+                stderr=subprocess.DEVNULL,
+            ).decode("utf-8")
+        except subprocess.CalledProcessError as e:
+            console.print(no_jobs_msg)
+            return None
+        except FileNotFoundError as e:
+            console.print(
+                "sacct command not found. Please make sure Slurm is installed and configured correctly."
+            )
+            return CommandNotFoundError("`sacct` command not found")
+
+    sacct_load = json.loads(old_jobs)
+    if settings.ACCOUNTS:
+        sacct_load["jobs"] = [
+            job for job in sacct_load["jobs"] if job["account"] in settings.ACCOUNTS
+        ]
+    old_jobs = sacct_load["jobs"]
+    # sort inversely by job id
+    old_jobs = sorted(old_jobs, key=lambda k: k["job_id"], reverse=True)
+
+    old_jobs = {item["job_id"]: item for item in old_jobs}
+    return old_jobs
+
+
 def get_rich_state(state: str):
     if "To be Deleted" in state:
         actual_state = get_rich_state(state.replace("(To be Deleted)", "").strip())
         return f"{actual_state} [red](To be Deleted)[/red]"
 
-    if state.startswith("["):
+    if isinstance(state, str) and state.startswith("["):
         # transform the string into a list of states
         state = literal_eval(state)
+        return " ".join([get_rich_state(s) for s in state])
+    elif isinstance(state, list):
         return " ".join([get_rich_state(s) for s in state])
     else:
         if state == "RUNNING":
@@ -554,5 +616,26 @@ def check_for_any_job_array(jobs_dict):
     )
 
 
+def check_for_any_old_job_array(jobs_dict):
+    return any(
+        [
+            (job["array"]["task_id"]["set"] and job["array"]["task_id"]["number"] != 0)
+            for job in jobs_dict.values()
+        ]
+    )
+
+
 def check_for_job_state_reason(jobs_dict):
     return any([job["state_reason"] != "None" for job in jobs_dict.values()])
+
+
+def get_job_resources(job_dict):
+    return job_dict.get("job_resources", {}) or {}
+
+
+class SlurmTUIReturn:
+    """Return value for SlurmTUI."""
+
+    def __init__(self, action: str, extra: Dict[str, Any]) -> None:
+        self.action = action
+        self.extra = extra

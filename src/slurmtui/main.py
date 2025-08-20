@@ -1,36 +1,30 @@
 import argparse
 import datetime
-import json
 import os
-import socket
-import subprocess
 import sys
-from collections import OrderedDict
-from typing import Any, Coroutine, Dict
+from typing import Any, Callable, Dict, Iterable
+from weakref import WeakSet
 
-from packaging.version import Version
 from rich import print_json
-from rich.syntax import Syntax
-from rich.text import Text
-from textual import log
-from textual.app import App, ComposeResult
+from textual import on, work
+from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
-from textual.containers import Grid, Horizontal, Vertical
 from textual.coordinate import Coordinate
 from textual.css.query import NoMatches
-from textual.screen import ModalScreen, Screen
-from textual.widgets import (
-    Button,
-    DataTable,
-    Footer,
-    Header,
-    Input,
-    Label,
-    RichLog,
-    Static,
-)
+from textual.screen import Screen
+from textual.timer import Timer
+from textual.widgets import DataTable, Footer, Header
 
+from .screens import (
+    get_confirm_screen,
+    get_info_screen,
+    get_old_jobs_screen,
+    get_settings_screen,
+)
+from .screens.utils import ColumnManager
 from .slurm_utils import (
+    CommandNotFoundError,
+    SlurmTUIReturn,
     check_for_any_job_array,
     check_for_job_state_reason,
     check_for_state,
@@ -38,185 +32,7 @@ from .slurm_utils import (
     get_running_jobs,
     get_start_and_end_time_string,
 )
-from .utils import SETTINGS, console
-
-global settings
-
-settings = SETTINGS().load()
-
-
-class SettingsScreen(Screen):
-    BINDINGS = [
-        # I couldn't disable the default bindings, so I just overrode them
-        Binding("c", "do_nothing", "", False),
-        Binding("l", "do_nothing", "", False),
-        Binding("e", "do_nothing", "", False),
-        Binding("d", "do_nothing", "", False),
-        Binding("i", "do_nothing", "", False),
-        Binding("ctrl+s", "save_settings", "Save Settings", key_display="Ctrl+S"),
-        Binding("escape", "app.pop_screen", "Go Back", key_display="Esc"),
-        Binding("b", "app.pop_screen", "Go Back", False),
-        Binding("backspace", "app.pop_screen", "Go Back", False),
-        Binding("q", "app.quit", "Quit", key_display="Q"),
-    ]
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.app.title = "SlurmTUI Settings"
-
-    def compose(self) -> ComposeResult:
-        yield Header(show_clock=True, name="SlurmTUI Settings", id="settings_header")
-        settings_dict = settings.__dict__
-        with Vertical(classes="settings_row"):
-            for key, value in settings_dict.items():
-                _value = str(value)
-                # add a Label and an input field for each settings variable
-                with Vertical():
-                    key_str = f"{key} ({SETTINGS.get_fields_descriptions()[key]})"
-                    yield Static(key_str, id=f"label_{key}")
-                    yield Input(_value, id=f"input_{key}")
-        yield Footer()
-
-    def action_save_settings(self) -> None:
-        settings_dict = settings.__dict__
-        for key, value in settings_dict.items():
-            try:
-                new_value = self.query_one(f"#input_{key}").value
-                if new_value == "None" or new_value == "" or new_value == "null":
-                    new_value = None
-                elif isinstance(value, int) and new_value.isdigit():
-                    new_value = int(new_value)
-                elif isinstance(value, bool):
-                    new_value = new_value.lower() == "true"
-                setattr(settings, key, new_value)
-            except NoMatches:
-                pass
-        settings.save()
-        self.notify("Settings saved")
-        self.dismiss()
-
-    def action_do_nothing(self) -> None:
-        pass
-
-
-class InfoScreen(Screen[str]):
-    BINDINGS = [
-        # I couldn't disable the default bindings, so I just overrode them
-        Binding("c", "do_nothing", "", False),
-        Binding("l", "do_nothing", "", False),
-        Binding("e", "do_nothing", "", False),
-        Binding("d", "do_nothing", "", False),
-        Binding("i", "do_nothing", "", False),
-        Binding("s", "print_cli", "Print in CLI", key_display="S"),
-        Binding("escape", "app.pop_screen", "Go Back", key_display="Esc"),
-        Binding("b", "app.pop_screen", "Go Back", False),
-        Binding("backspace", "app.pop_screen", "Go Back", False),
-        Binding("q", "app.quit", "Quit", key_display="Q"),
-    ]
-
-    def __init__(self, info: Dict[str, Any], **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.info = info
-        self.app.title = f"slurm Job Info: {self.info['job_id']}"
-
-    def compose(self) -> ComposeResult:
-        yield Header(show_clock=True, name="slurm Job Info", id="info_header")
-        yield RichLog(
-            highlight=True, markup=False, auto_scroll=False, wrap=True, id="info_text"
-        )
-        yield Footer()
-
-    def on_mount(self) -> None:
-        rich_text = self.query_one(RichLog)
-        rich_text.write(
-            Syntax(json.dumps(self.info, indent=4), "json", word_wrap=True),
-            shrink=False,
-        )
-
-    def action_print_cli(self) -> None:
-        self.dismiss(json.dumps(self.info, indent=4))
-
-    def action_do_nothing(self) -> None:
-        pass
-
-
-class ConfirmScreen(Screen[bool]):
-    """Screen with confirm a dialog."""
-
-    BINDINGS = [
-        Binding("y", "yes", "Yes", key_display="Y"),
-        Binding("n", "no", "No", key_display="N"),
-        Binding("c", "do_nothing", "", False),
-        Binding("l", "do_nothing", "", False),
-        Binding("e", "do_nothing", "", False),
-        Binding("d", "do_nothing", "", False),
-        Binding("i", "do_nothing", "", False),
-        Binding("escape", "app.pop_screen", "Go Back", key_display="Esc"),
-        Binding("s", "do_nothing", "", False),
-        Binding("b", "app.pop_screen", "Go Back", False),
-        Binding("backspace", "app.pop_screen", "Go Back", False),
-        Binding("q", "app.quit", "Quit", key_display="Q"),
-        Binding("left", "app.focus_next", "Focus Next", show=False),
-        Binding("right", "app.focus_previous", "Focus Previous", show=False),
-    ]
-
-    def __init__(self, message: str, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.message = message
-
-    def compose(self) -> ComposeResult:
-        yield Grid(
-            Label(self.message, id="question"),
-            Button("Yes", variant="error", id="yes"),
-            Button("No", variant="primary", id="no"),
-            id="confirm_dialog",
-        )
-        yield Footer()
-
-    def action_do_nothing(self) -> None:
-        pass
-
-    def action_yes(self) -> None:
-        self.dismiss(True)
-
-    def action_no(self) -> None:
-        self.dismiss(False)
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.dismiss(event.button.id == "yes")
-
-
-class SlurmTUIReturn:
-    """Return value for SlurmTUI."""
-
-    def __init__(self, action: str, extra: Dict[str, Any]) -> None:
-        self.action = action
-        self.extra = extra
-
-
-class ColumnManager:
-    def __init__(self, initial_columns: Dict[str, bool]):
-        # OrderedDict to store column names and their enabled status
-        self.columns = initial_columns.copy()
-
-    def enable_column(self, column_name):
-        """Enable a column by name."""
-        if column_name in self.columns:
-            self.columns[column_name] = True
-
-    def disable_column(self, column_name):
-        """Disable a column by name."""
-        if column_name in self.columns:
-            self.columns[column_name] = False
-
-    def get_enabled_columns(self):
-        """Return a list of enabled column names in order."""
-        return [col for col, enabled in self.columns.items() if enabled]
-
-    def get_all_columns(self):
-        """Return a list of all column names in order."""
-        return list(self.columns.keys())
-
+from .utils import settings
 
 DEFAULT_COLUMNS = {
     "Job id": True,
@@ -245,12 +61,15 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     CSS_PATH = "css/slurmtui.css"
 
+    # ENABLE_COMMAND_PALETTE = False
+
     BINDINGS = [
         Binding("l", "logs_out", "Logs (STDOUT)", key_display="L"),
         Binding("e", "logs_err", "Logs (STDERR)", key_display="E"),
         Binding("c", "connect", "Connect to Node (ssh)", key_display="C"),
         Binding("i", "info", "Info", key_display="I"),
         Binding("d", "delete", "Delete", key_display="D"),
+        Binding("o", "old_jobs", "Old Jobs", key_display="O"),
         Binding("s", "settings", "Settings", key_display="S"),
         Binding("q", "quit", "Quit", key_display="Q"),
     ]
@@ -267,6 +86,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         old_cursor = job_table.cursor_coordinate
         self.running_jobs_dict = get_running_jobs(settings=settings)
+        if isinstance(self.running_jobs_dict, CommandNotFoundError):
+            self.exit(SlurmTUIReturn("print", {"string_to_print": self.running_jobs_dict.message}), return_code=1)
+            return
+
         job_array_exists = check_for_any_job_array(self.running_jobs_dict)
         job_reason_exists = check_for_job_state_reason(self.running_jobs_dict)
 
@@ -345,7 +168,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             _columns.extend(
                 [
                     str(v["name"])[0:50],
-                    str(v["job_resources"].get("nodes", ""))[0:25],
+                    str(v.get("nodes", ""))[0:25],
                     str(v["partition"]),
                     start_time_string,
                     end_time_string,
@@ -389,6 +212,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
 
     def on_mount(self) -> None:
+        self.theme = settings.THEME
         self._display_job_table()
         self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
 
@@ -437,7 +261,11 @@ class SlurmTUI(App[SlurmTUIReturn]):
                 severity="error",
             )
             return
-        self.exit(SlurmTUIReturn("logs", {"log_path": log_path}))
+
+        with self.suspend():
+            os.system(f"tail -n 10000 -f {log_path}")
+
+        self.refresh()
 
     def action_logs_out(self) -> None:
         """Show the logs (STDOUT)."""
@@ -491,7 +319,12 @@ class SlurmTUI(App[SlurmTUIReturn]):
             if delete_array:
                 os.system(f"scancel {selected_job['array_job_id']['number']}")
             else:
-                os.system(f"scancel {selected_job['job_id']}")
+                if selected_job["array_job_id"]["number"] == selected_job["job_id"]:
+                    os.system(
+                        f"scancel {selected_job['job_id']}_{selected_job['array_task_id']['number']}"
+                    )
+                else:
+                    os.system(f"scancel {selected_job['job_id']}")
 
     def _check_job_is_array(self, selected_job: Dict[str, Any]) -> bool:
         """Check if the selected job is an array job."""
@@ -539,8 +372,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
             """Called when ConfirmScreen is dismissed."""
             if confirm:
                 if self._check_job_is_array(selected_job):
+                    confirm_screen = get_confirm_screen(self.BINDINGS)
                     self.push_screen(
-                        ConfirmScreen(
+                        confirm_screen(
                             "This is an array job, do you want to delete all the jobs in the array?"
                         ),
                         check_confirm_nslurmray,
@@ -552,14 +386,16 @@ class SlurmTUI(App[SlurmTUIReturn]):
         # add the id and the name of the job to the message
         delete_message += f"Job ID: {selected_job['job_id']}\n"
         delete_message += f"Job Name: {selected_job['name']}\n"
-        node_name = selected_job["job_resources"].get("nodes", "")[0:25]
+        node_name = str(selected_job.get("nodes", ""))[0:25]
         if node_name:
             delete_message += f"Node Name: {node_name}\n"
-        self.push_screen(ConfirmScreen(delete_message), check_confirm)
+        confirm_screen = get_confirm_screen(self.BINDINGS)
+        self.push_screen(confirm_screen(delete_message), check_confirm)
 
     def action_settings(self) -> None:
         """Show the settings."""
-        self.push_screen(SettingsScreen())
+        settings_screen = get_settings_screen(self.BINDINGS)
+        self.push_screen(settings_screen())
 
     def action_info(self) -> None:
         """Show the job info."""
@@ -578,13 +414,69 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         def print_cli(string_to_print: str) -> None:
             """Print the string to the CLI."""
-            self.exit(SlurmTUIReturn("print", {"string_to_print": string_to_print}))
+            self.exit(SlurmTUIReturn("print_json", {"string_to_print": string_to_print}))
 
-        self.push_screen(InfoScreen(selected_job), print_cli)
+        info_screen = get_info_screen(self.BINDINGS)
+        self.push_screen(info_screen(selected_job), print_cli)
+
+    @work
+    async def action_old_jobs(self) -> None:
+        """Show the old jobs."""
+        for timer in self._timers:
+            timer.stop()
+        self._timers.clear()
+        self._timers = WeakSet()
+        old_jobs_screen = get_old_jobs_screen(self.BINDINGS)
+        await self.push_screen_wait(old_jobs_screen(settings=settings))
+        self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
 
     def action_quit(self) -> None:
         """Quit the application."""
         self.exit(SlurmTUIReturn("quit", {}))
+
+    def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        """Overrides the default system commands to and removes the theme selector."""
+        yield SystemCommand(
+            "Settings",
+            "Open the settings screen to change SlurmTUI settings",
+            self.action_settings,
+        )
+
+        yield SystemCommand(
+            "Quit the application",
+            "Quit the application as soon as possible",
+            self.action_quit,
+        )
+
+        if screen.query("HelpPanel"):
+            yield SystemCommand(
+                "Hide keys and help panel",
+                "Hide the keys and widget help panel",
+                self.action_hide_help_panel,
+            )
+        else:
+            yield SystemCommand(
+                "Show keys and help panel",
+                "Show help for the focused widget and a summary of available keys",
+                self.action_show_help_panel,
+            )
+
+        if screen.maximized is not None:
+            yield SystemCommand(
+                "Minimize",
+                "Minimize the widget and restore to normal size",
+                screen.action_minimize,
+            )
+        elif screen.focused is not None and screen.focused.allow_maximize:
+            yield SystemCommand(
+                "Maximize", "Maximize the focused widget", screen.action_maximize
+            )
+
+        yield SystemCommand(
+            "Save screenshot",
+            "Save an SVG 'screenshot' of the current screen",
+            self.deliver_screenshot,
+        )
 
 
 def slurmcommand_executor(slurm_return: SlurmTUIReturn, mock=settings.MOCK) -> None:
@@ -595,13 +487,11 @@ def slurmcommand_executor(slurm_return: SlurmTUIReturn, mock=settings.MOCK) -> N
             os.system(
                 f"ssh -o StrictHostKeyChecking=no {slurm_return.extra['batch_host']}"
             )
-    elif slurm_return.action == "logs":
-        if mock:
-            print(f"tail -n 10000 -f {slurm_return.extra['log_path']}")
-        else:
-            os.system(f"tail -n 10000 -f {slurm_return.extra['log_path']}")
-    elif slurm_return.action == "print":
+    elif slurm_return.action == "print_json":
         print_json(slurm_return.extra["string_to_print"])
+    elif slurm_return.action == "print":
+        print(slurm_return.extra["string_to_print"])
+        sys.exit(0)
     elif slurm_return.action == "quit":
         sys.exit(0)
     else:
@@ -618,7 +508,7 @@ def main():
         "--check_all_jobs", action="store_true", help="Check all jobs", default=None
     )
     parser.add_argument(
-        "--fake_queue_json_path", help="Fake queue JSON path", default=None
+        "--debug_squeue_json_path", help="Fake queue JSON path", default=None
     )
     parser.add_argument(
         "--acc",
@@ -633,8 +523,8 @@ def main():
         settings.MOCK = args.mock
     if args.check_all_jobs is not None:
         settings.CHECK_ALL_JOBS = args.check_all_jobs
-    if args.fake_queue_json_path:
-        settings.FAKE_QUEUE_JSON_PATH = args.fake_queue_json_path
+    if args.debug_squeue_json_path:
+        settings.DEBUG_SQUEUE_JSON_PATH = args.debug_squeue_json_path
     if remaining_args:
         settings.SQUEUE_ARGS = remaining_args
     if args.acc:
