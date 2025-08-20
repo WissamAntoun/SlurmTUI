@@ -31,8 +31,8 @@ slurmtui --account my_account
 
 # List of planned features (not in the priority order):
 
-- [ ] View old jobs
-- [ ] Filtering jobs when launching
+- [x] View old jobs
+- [x] Filtering jobs when launching
 - [ ] Sorting
 - [ ] Options other than tail for logs
 - [x] Faster launch
