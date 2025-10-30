@@ -155,7 +155,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
 
             job_table.add_columns(*column_manager.get_enabled_columns())
 
-            if self.old_jobs and len(self.old_jobs) == 0:
+            if self.old_jobs is None or len(self.old_jobs) == 0:
                 _columns = ["No jobs in the past window"] + (
                     len(column_manager.get_enabled_columns()) - 1
                 ) * [""]
