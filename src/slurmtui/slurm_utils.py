@@ -607,6 +607,8 @@ def get_start_and_end_time_string(
 
 
 def check_for_any_job_array(jobs_dict):
+    if not jobs_dict:
+        return False
     return any(
         [
             (job["array_job_id"]["set"] and job["array_job_id"]["number"] != 0)
