@@ -619,6 +619,8 @@ def check_for_any_job_array(jobs_dict):
 
 
 def check_for_any_old_job_array(jobs_dict):
+    if not jobs_dict:
+        return False
     return any(
         [
             (job["array"]["task_id"]["set"] and job["array"]["task_id"]["number"] != 0)
@@ -628,10 +630,14 @@ def check_for_any_old_job_array(jobs_dict):
 
 
 def check_for_job_state_reason(jobs_dict):
+    if not jobs_dict:
+        return False
     return any([job["state_reason"] != "None" for job in jobs_dict.values()])
 
 
 def get_job_resources(job_dict):
+    if not job_dict:
+        return {}
     return job_dict.get("job_resources", {}) or {}
 
 
