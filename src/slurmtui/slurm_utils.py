@@ -607,7 +607,7 @@ def get_start_and_end_time_string(
 
 
 def check_for_any_job_array(jobs_dict):
-    if not jobs_dict:
+    if not jobs_dict or jobs_dict is None:
         return False
     return any(
         [
@@ -619,7 +619,7 @@ def check_for_any_job_array(jobs_dict):
 
 
 def check_for_any_old_job_array(jobs_dict):
-    if not jobs_dict:
+    if not jobs_dict or jobs_dict is None:
         return False
     return any(
         [
@@ -630,13 +630,13 @@ def check_for_any_old_job_array(jobs_dict):
 
 
 def check_for_job_state_reason(jobs_dict):
-    if not jobs_dict:
+    if not jobs_dict or jobs_dict is None:
         return False
     return any([job["state_reason"] != "None" for job in jobs_dict.values()])
 
 
 def get_job_resources(job_dict):
-    if not job_dict:
+    if not job_dict or job_dict is None:
         return {}
     return job_dict.get("job_resources", {}) or {}
 
