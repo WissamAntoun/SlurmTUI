@@ -14,7 +14,6 @@ from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.timer import Timer
 from textual.widgets import Footer, Header
-from textual_sortable_datatable import SortableDataTable as DataTable
 
 from .screens import (
     get_confirm_screen,
@@ -22,7 +21,7 @@ from .screens import (
     get_old_jobs_screen,
     get_settings_screen,
 )
-from .screens.utils import ColumnManager
+from .screens.utils import ColumnManager, VanillaSortableDataTable
 from .slurm_utils import (
     CommandNotFoundError,
     SlurmTUIReturn,
@@ -80,7 +79,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     def _display_job_table(self) -> None:
         try:
-            job_table = self.query_one(DataTable)
+            job_table = self.query_one(VanillaSortableDataTable)
             self.job_table = job_table
         except NoMatches:
             job_table = self.job_table
@@ -219,7 +218,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        yield DataTable(zebra_stripes=True, name="job_table", id="job_table")
+        yield VanillaSortableDataTable(zebra_stripes=True, name="job_table", id="job_table")
         yield Footer()
 
     def _check_no_jobs(self) -> bool:
@@ -232,7 +231,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         """Show the logs (STDOUT)."""
         # get the id of the selected job
         try:
-            job_table = self.query_one(DataTable)
+            job_table = self.query_one(VanillaSortableDataTable)
             self.job_table = job_table
         except NoMatches:
             job_table = self.job_table
@@ -284,7 +283,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             return
 
         try:
-            job_table = self.query_one(DataTable)
+            job_table = self.query_one(VanillaSortableDataTable)
             self.job_table = job_table
         except NoMatches:
             job_table = self.job_table
@@ -346,7 +345,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             return
 
         try:
-            job_table = self.query_one(DataTable)
+            job_table = self.query_one(VanillaSortableDataTable)
             self.job_table = job_table
         except NoMatches:
             job_table = self.job_table
@@ -404,7 +403,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
             return
 
         try:
-            job_table = self.query_one(DataTable)
+            job_table = self.query_one(VanillaSortableDataTable)
             self.job_table = job_table
         except NoMatches:
             job_table = self.job_table

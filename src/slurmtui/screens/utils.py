@@ -1,5 +1,15 @@
 from typing import Dict
 
+from textual.widgets import DataTable
+from textual_sortable_datatable import SortableDataTable
+
+
+class VanillaSortableDataTable(SortableDataTable):
+    # don’t use SortableDataTable’s CSS/bindings at all, just fall back to
+    # the originals defined on DataTable
+    DEFAULT_CSS = DataTable.DEFAULT_CSS
+    BINDINGS   = DataTable.BINDINGS.copy()   # copy if you plan to mutate
+
 
 class ColumnManager:
     def __init__(self, initial_columns: Dict[str, bool]):

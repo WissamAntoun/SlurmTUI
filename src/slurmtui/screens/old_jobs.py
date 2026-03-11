@@ -7,7 +7,7 @@ from textual.binding import Binding
 from textual.coordinate import Coordinate
 from textual.css.query import NoMatches
 from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Header
+from textual.widgets import Footer, Header
 
 from slurmtui.screens.info import get_info_screen
 
@@ -21,7 +21,7 @@ from ..slurm_utils import (
 )
 from ..utils import SETTINGS
 from .settings import get_settings_screen
-from .utils import ColumnManager
+from .utils import ColumnManager, VanillaSortableDataTable
 
 OLD_SCREEN_BINDINGS = [
     Binding("escape", "screen.dismiss", "Go Back", key_display="Esc"),
@@ -133,7 +133,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
 
         def on_mount(self) -> None:
             try:
-                job_table = self.query_one(DataTable)
+                job_table = self.query_one(VanillaSortableDataTable)
                 self.job_table = job_table
             except NoMatches:
                 job_table = self.job_table
@@ -206,7 +206,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
-            yield DataTable(
+            yield VanillaSortableDataTable(
                 zebra_stripes=True, name="old_job_table", id="old_job_table"
             )
             yield Footer()
@@ -221,7 +221,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
             """Show the logs (STDOUT)."""
             # get the id of the selected job
             try:
-                job_table = self.query_one(DataTable)
+                job_table = self.query_one(VanillaSortableDataTable)
                 self.job_table = job_table
             except NoMatches:
                 job_table = self.job_table
@@ -292,7 +292,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
                 return
 
             try:
-                job_table = self.query_one(DataTable)
+                job_table = self.query_one(VanillaSortableDataTable)
                 self.job_table = job_table
             except NoMatches:
                 job_table = self.job_table
