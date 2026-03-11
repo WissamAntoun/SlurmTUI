@@ -13,7 +13,8 @@ from textual.coordinate import Coordinate
 from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.timer import Timer
-from textual.widgets import DataTable, Footer, Header
+from textual.widgets import Footer, Header
+from textual_sortable_datatable import SortableDataTable as DataTable
 
 from .screens import (
     get_confirm_screen,
