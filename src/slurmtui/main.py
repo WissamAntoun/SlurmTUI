@@ -330,15 +330,16 @@ class SlurmTUI(App[SlurmTUIReturn]):
     def _check_job_is_array(self, selected_job: Dict[str, Any]) -> bool:
         """Check if the selected job is an array job."""
 
-        if selected_job["array_job_id"]["number"] == 0:
-            return False
-        elif (
-            selected_job["array_task_id"]["number"] > 1
-            or selected_job["array_job_id"]["number"] != selected_job["job_id"]
-        ):
-            return True
+        # if selected_job["array_job_id"]["number"] == 0:
+        #     return False
+        # elif (
+        #     selected_job["array_task_id"]["number"] > 1
+        #     or selected_job["array_job_id"]["number"] != selected_job["job_id"]
+        # ):
+        #     return True
 
-        return False
+        # return False
+        return selected_job["array_job_id"]["number"] != 0
 
     def action_delete(self) -> None:
         """Delete the job."""
