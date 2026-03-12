@@ -545,6 +545,8 @@ def format_time_string(time_delta: datetime.timedelta) -> str:
         time_string += f"{fraction_of_minute} mins"
         return time_string
     if seconds > 0:
+        if seconds < 1:
+            seconds = round(seconds, 1)
         time_string += f"{seconds} secs"
         return time_string
     return time_string
