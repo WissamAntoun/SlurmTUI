@@ -21,7 +21,8 @@ from ..slurm_utils import (
 )
 from ..utils import SETTINGS
 from .settings import get_settings_screen
-from .utils import ColumnManager, VanillaSortableDataTable
+from .sortable_data_table import SortableDataTable
+from .utils import ColumnManager
 
 OLD_SCREEN_BINDINGS = [
     Binding("escape", "screen.dismiss", "Go Back", key_display="Esc"),
@@ -133,7 +134,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
 
         def on_mount(self) -> None:
             try:
-                job_table = self.query_one(VanillaSortableDataTable)
+                job_table = self.query_one(SortableDataTable)
                 self.job_table = job_table
             except NoMatches:
                 job_table = self.job_table
@@ -206,7 +207,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
-            yield VanillaSortableDataTable(
+            yield SortableDataTable(
                 zebra_stripes=True, name="old_job_table", id="old_job_table"
             )
             yield Footer()
@@ -221,7 +222,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
             """Show the logs (STDOUT)."""
             # get the id of the selected job
             try:
-                job_table = self.query_one(VanillaSortableDataTable)
+                job_table = self.query_one(SortableDataTable)
                 self.job_table = job_table
             except NoMatches:
                 job_table = self.job_table
@@ -292,7 +293,7 @@ def get_old_jobs_screen(OLD_BINDINGS: List[Binding]):
                 return
 
             try:
-                job_table = self.query_one(VanillaSortableDataTable)
+                job_table = self.query_one(SortableDataTable)
                 self.job_table = job_table
             except NoMatches:
                 job_table = self.job_table
