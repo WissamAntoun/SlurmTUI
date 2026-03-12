@@ -534,22 +534,22 @@ def format_time_string(time_delta: datetime.timedelta) -> str:
     time_string = ""
     if days > 0:
         fraction_of_day = days + round(time_delta.seconds / 86400, 1)
-        time_string += f"{fraction_of_day} days"
+        time_string += f" +{fraction_of_day} days"
         return time_string
     if hours > 0:
         fraction_of_hour = round(time_delta.seconds / 3600, 1)
-        time_string += f"{fraction_of_hour} hrs"
+        time_string += f" +{fraction_of_hour} hrs"
         return time_string
     if minutes > 0:
         fraction_of_minute = round(time_delta.seconds / 60, 1)
-        time_string += f"{fraction_of_minute} mins"
+        time_string += f" +{fraction_of_minute} mins"
         return time_string
     if seconds > 0:
         if seconds < 1:
             seconds = round(seconds, 1)
-        time_string += f"{seconds} secs"
+        time_string += f" +{seconds} secs"
         return time_string
-    return time_string
+    return " (Instant)"
 
 
 def get_start_and_end_time_string(

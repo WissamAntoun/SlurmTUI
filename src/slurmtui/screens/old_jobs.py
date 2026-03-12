@@ -71,7 +71,7 @@ def get_time_strings(job: Dict[str, Any]) -> Tuple[str, str, str]:
         started_after = datetime.datetime.fromtimestamp(
             start_time
         ) - datetime.datetime.fromtimestamp(submit_time)
-        start_time_string += f" +{format_time_string(started_after)}"
+        start_time_string += format_time_string(started_after)
 
     if end_time:
         end_time_string = datetime.datetime.fromtimestamp(end_time).strftime(
@@ -81,7 +81,7 @@ def get_time_strings(job: Dict[str, Any]) -> Tuple[str, str, str]:
             end_time
         ) - datetime.datetime.fromtimestamp(start_time)
         if end_time > start_time:
-            end_time_string += f" +{format_time_string(ended_after)}"
+            end_time_string += format_time_string(ended_after)
         else:
             end_time_string += f" (Instant)"
 
