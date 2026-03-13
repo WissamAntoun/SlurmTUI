@@ -534,22 +534,22 @@ def format_time_string(time_delta: datetime.timedelta) -> str:
     time_string = ""
     if days > 0:
         fraction_of_day = days + round(time_delta.seconds / 86400, 1)
-        time_string += f" +{fraction_of_day} days"
+        time_string += f"{fraction_of_day} days"
         return time_string
     if hours > 0:
         fraction_of_hour = round(time_delta.seconds / 3600, 1)
-        time_string += f" +{fraction_of_hour} hrs"
+        time_string += f"{fraction_of_hour} hrs"
         return time_string
     if minutes > 0:
         fraction_of_minute = round(time_delta.seconds / 60, 1)
-        time_string += f" +{fraction_of_minute} mins"
+        time_string += f"{fraction_of_minute} mins"
         return time_string
     if seconds > 0:
         if seconds < 1:
             seconds = round(seconds, 1)
-        time_string += f" +{seconds} secs"
+        time_string += f"{seconds} secs"
         return time_string
-    return " (Instant)"
+    return time_string
 
 
 def get_start_and_end_time_string(
@@ -584,7 +584,8 @@ def get_start_and_end_time_string(
         # check if time remaining is positive
         # TypeError: '>' not supported between instances of 'datetime.timedelta' and 'int'
         if time_remaining.days >= 0:
-            end_time_string += " (in " + format_time_string(time_remaining) + ")"
+            formatted_time_remaining = format_time_string(time_remaining)
+            end_time_string += " (in " + formatted_time_remaining + ")" if formatted_time_remaining else " (Instant)"
 
     if check_for_state(job_state, "PENDING"):
         if start_time:
@@ -592,15 +593,17 @@ def get_start_and_end_time_string(
                 start_time
             ) - get_datetime_now(settings)
             if time_till_start.days >= 0:
-                start_time_string += " (in " + format_time_string(time_till_start) + ")"
+                formatted_time_till_start = format_time_string(time_till_start)
+                start_time_string += " (in " + formatted_time_till_start + ")" if formatted_time_till_start else " (Instant)"
         elif submit_time:
             time_since_submit = get_datetime_now(
                 settings
             ) - datetime.datetime.fromtimestamp(submit_time)
             if time_since_submit.days >= 0:
+                formatted_time_since_submit = format_time_string(time_since_submit)
                 submit_time_string += (
-                    " (sub. " + format_time_string(time_since_submit) + " ago)"
-                )
+                    " (sub. " + formatted_time_since_submit + " ago)"
+                ) if formatted_time_since_submit else " (just now)"
                 start_time_string = submit_time_string
         else:
             pass
