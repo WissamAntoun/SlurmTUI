@@ -9,354 +9,21 @@ from typing import Any, Dict
 
 from .utils import SETTINGS, console
 
-fake_squeue = """{
-   "meta": {
-     "plugins": {
-       "data_parser": "data_parser\/v0.0.39",
-       "accounting_storage": "accounting_storage\/slurmdbd"
-     },
-     "command": [
-       "squeue",
-       "-u",
-       "www26kf",
-       "--json"
-     ],
-     "Slurm": {
-       "version": {
-         "major": 23,
-         "micro": 6,
-         "minor": 2
-       },
-       "release": "23.02.6"
-     }
-   },
-   "jobs": [
-     {
-       "account": "dmn@v100",
-       "accrue_time": 1701982989,
-       "admin_comment": "",
-       "allocating_node": "localhost",
-       "array_job_id": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "array_task_id": {
-         "set": false,
-         "infinite": false,
-         "number": 0
-       },
-       "array_max_tasks": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "array_task_string": "",
-       "association_id": 22684,
-       "batch_features": "",
-       "batch_flag": true,
-       "batch_host": "data-center-ia830",
-       "flags": [
-         "EXACT_TASK_COUNT_REQUESTED",
-         "ACCRUE_COUNT_CLEARED",
-         "JOB_WAS_RUNNING",
-         "EXACT_MEMORY_REQUESTED",
-         "USING_DEFAULT_WCKEY"
-       ],
-       "burst_buffer": "",
-       "burst_buffer_state": "",
-       "cluster": "data-center",
-       "cluster_features": "",
-       "command": ".\/slurm\/run_pretraining.slurm",
-       "comment": "",
-       "container": "",
-       "container_id": "",
-       "contiguous": false,
-       "core_spec": 0,
-       "thread_spec": 32766,
-       "cores_per_socket": {
-         "set": false,
-         "infinite": false,
-         "number": 0
-       },
-       "billable_tres": {
-         "set": true,
-         "infinite": false,
-         "number": 80.0
-       },
-       "cpus_per_task": {
-         "set": true,
-         "infinite": false,
-         "number": 1
-       },
-       "cpu_frequency_minimum": {
-         "set": false,
-         "infinite": false,
-         "number": 0
-       },
-       "cpu_frequency_maximum": {
-         "set": false,
-         "infinite": false,
-         "number": 0
-       },
-       "cpu_frequency_governor": {
-         "set": false,
-         "infinite": false,
-         "number": 0
-       },
-       "cpus_per_tres": "gres:gpu:1",
-       "cron": "",
-       "deadline": 0,
-       "delay_boot": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "dependency": "",
-       "derived_exit_code": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "eligible_time": 1701982989,
-       "end_time": 1705313394,
-       "excluded_nodes": "",
-       "exit_code": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "extra": "",
-       "failed_node": "",
-       "features": "",
-       "federation_origin": "",
-       "federation_siblings_active": "",
-       "federation_siblings_viable": "",
-       "gres_detail": [
-         "gpu:8(IDX:0-7)"
-       ],
-       "group_id": 300359,
-       "group_name": "genini01",
-       "het_job_id": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "het_job_id_set": "",
-       "het_job_offset": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "job_id": 1618871,
-       "job_resources": {
-         "nodes": "data-center-ia830",
-         "allocated_cores": 8,
-         "allocated_cpus": 0,
-         "allocated_hosts": 1,
-         "allocated_nodes": [
-           {
-             "sockets": {
-               "0": {
-                 "cores": {
-                   "0": "allocated",
-                   "1": "allocated",
-                   "2": "allocated",
-                   "3": "allocated",
-                   "4": "allocated",
-                   "5": "allocated",
-                   "6": "allocated",
-                   "7": "allocated"
-                 }
-               }
-             },
-             "nodename": "data-center-ia830",
-             "cpus_used": 0,
-             "memory_used": 0,
-             "memory_allocated": 120000
-           }
-         ]
-       },
-       "job_size_str": [
-       ],
-       "job_state": "RUNNING",
-       "last_sched_evaluation": 1701983394,
-       "licenses": "",
-       "mail_type": [
-       ],
-       "mail_user": "www26kf",
-       "max_cpus": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "max_nodes": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "mcs_label": "",
-       "memory_per_tres": "",
-       "name": "model_pretrain",
-       "network": "",
-       "nodes": "data-center-ia830",
-       "nice": 0,
-       "tasks_per_core": {
-         "set": false,
-         "infinite": true,
-         "number": 0
-       },
-       "tasks_per_tres": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "tasks_per_node": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "tasks_per_socket": {
-         "set": false,
-         "infinite": true,
-         "number": 0
-       },
-       "tasks_per_board": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "cpus": {
-         "set": true,
-         "infinite": false,
-         "number": 16
-       },
-       "node_count": {
-         "set": true,
-         "infinite": false,
-         "number": 1
-       },
-       "tasks": {
-         "set": true,
-         "infinite": false,
-         "number": 8
-       },
-       "partition": "gpu_p2",
-       "prefer": "",
-       "memory_per_cpu": {
-         "set": true,
-         "infinite": false,
-         "number": 15000
-       },
-       "memory_per_node": {
-         "set": false,
-         "infinite": false,
-         "number": 0
-       },
-       "minimum_cpus_per_node": {
-         "set": true,
-         "infinite": false,
-         "number": 1
-       },
-       "minimum_tmp_disk_per_node": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "power": {
-         "flags": [
-         ]
-       },
-       "preempt_time": 0,
-       "preemptable_time": 0,
-       "pre_sus_time": 0,
-       "hold": false,
-       "priority": {
-         "set": true,
-         "infinite": false,
-         "number": 239256
-       },
-       "profile": [
-         "NOT_SET"
-       ],
-       "qos": "qos_gpu-t4",
-       "reboot": false,
-       "required_nodes": "",
-       "minimum_switches": 0,
-       "requeue": true,
-       "resize_time": 0,
-       "restart_cnt": 0,
-       "resv_name": "",
-       "scheduled_nodes": "",
-       "selinux_context": "",
-       "shared": [
-       ],
-       "exclusive": [
-       ],
-       "oversubscribe": true,
-       "show_flags": [
-         "DETAIL",
-         "LOCAL"
-       ],
-       "sockets_per_board": 0,
-       "sockets_per_node": {
-         "set": false,
-         "infinite": false,
-         "number": 0
-       },
-       "start_time": 1701983394,
-       "state_description": "",
-       "state_reason": "None",
-       "standard_error": "\/gpfsdswork\/projects\/rech\/dmn\/www26kf\/repos\/model\/.\/logs\/model_pretrain_1618871.out",
-       "standard_input": "\/dev\/null",
-       "standard_output": "\/gpfsdswork\/projects\/rech\/dmn\/www26kf\/repos\/model\/.\/logs\/model_pretrain_1618871.out",
-       "submit_time": 1701982989,
-       "suspend_time": 0,
-       "system_comment": "",
-       "time_limit": {
-         "set": true,
-         "infinite": false,
-         "number": 6000
-       },
-       "time_minimum": {
-         "set": true,
-         "infinite": false,
-         "number": 0
-       },
-       "threads_per_core": {
-         "set": true,
-         "infinite": false,
-         "number": 1
-       },
-       "tres_bind": "",
-       "tres_freq": "",
-       "tres_per_job": "",
-       "tres_per_node": "gres:gpu:8",
-       "tres_per_socket": "",
-       "tres_per_task": "",
-       "tres_req_str": "cpu=8,mem=120000M,node=1,billing=80,gres\/gpu=8",
-       "tres_alloc_str": "cpu=16,mem=120000M,node=1,billing=80,gres\/gpu=8",
-       "user_id": 303600,
-       "user_name": "www26kf",
-       "maximum_switch_wait_time": 0,
-       "wckey": "",
-       "current_working_directory": "\/gpfsdswork\/projects\/rech\/dmn\/www26kf\/repos\/model"
-     }
-   ],
-   "warnings": [
-   ],
-   "errors": [
-   ]
-}
-"""
-
 
 def get_fake_squeue(debug_squeue_json_path: str = None):
     if debug_squeue_json_path:
         with open(debug_squeue_json_path, "r") as f:
             return f.read()
     else:
-        return fake_squeue
+        return json.dumps({"jobs": []})
+
+
+def get_fake_sacct(debug_sacct_json_path: str = None):
+    if debug_sacct_json_path:
+        with open(debug_sacct_json_path, "r") as f:
+            return f.read()
+    else:
+        return json.dumps({"jobs": []})
 
 
 def get_time(time_field) -> str:
@@ -388,11 +55,14 @@ def get_datetime_now(settings: SETTINGS):
 def get_user():
     return os.getenv("USER", os.getenv("USERNAME", "unknown"))
 
+
 class CommandNotFoundError(Exception):
     """Exception raised when a command is not found."""
+
     def __init__(self, message="Command not found."):
         super().__init__()
         self.message = message
+
 
 def get_running_jobs(
     settings: SETTINGS,
@@ -439,7 +109,6 @@ def get_running_jobs(
     return running_jobs_dict
 
 
-
 def get_old_jobs(
     settings: SETTINGS,
     start_time: datetime.datetime = None,
@@ -447,7 +116,7 @@ def get_old_jobs(
     no_jobs_msg: str = "[yellow]No Jobs are running![/yellow]",
 ) -> Dict[int, Dict]:
     if settings.MOCK:
-        old_jobs = get_fake_squeue(settings.DEBUG_SACCT_JSON_PATH)
+        old_jobs = get_fake_sacct(settings.DEBUG_SACCT_JSON_PATH)
     else:
         try:
             start_time = start_time or settings.OLD_JOB_START_TIME or "now-7days"
@@ -585,7 +254,11 @@ def get_start_and_end_time_string(
         # TypeError: '>' not supported between instances of 'datetime.timedelta' and 'int'
         if time_remaining.days >= 0:
             formatted_time_remaining = format_time_string(time_remaining)
-            end_time_string += " (in " + formatted_time_remaining + ")" if formatted_time_remaining else " (Instant)"
+            end_time_string += (
+                " (in " + formatted_time_remaining + ")"
+                if formatted_time_remaining
+                else " (Instant)"
+            )
 
     if check_for_state(job_state, "PENDING"):
         if start_time:
@@ -594,7 +267,11 @@ def get_start_and_end_time_string(
             ) - get_datetime_now(settings)
             if time_till_start.days >= 0:
                 formatted_time_till_start = format_time_string(time_till_start)
-                start_time_string += " (in " + formatted_time_till_start + ")" if formatted_time_till_start else " (Instant)"
+                start_time_string += (
+                    " (in " + formatted_time_till_start + ")"
+                    if formatted_time_till_start
+                    else " (Instant)"
+                )
         elif submit_time:
             time_since_submit = get_datetime_now(
                 settings
@@ -602,8 +279,10 @@ def get_start_and_end_time_string(
             if time_since_submit.days >= 0:
                 formatted_time_since_submit = format_time_string(time_since_submit)
                 submit_time_string += (
-                    " (sub. " + formatted_time_since_submit + " ago)"
-                ) if formatted_time_since_submit else " (just now)"
+                    (" (sub. " + formatted_time_since_submit + " ago)")
+                    if formatted_time_since_submit
+                    else " (just now)"
+                )
                 start_time_string = submit_time_string
         else:
             pass
