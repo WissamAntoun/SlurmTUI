@@ -3,7 +3,6 @@ import datetime
 import os
 import sys
 from typing import Any, Callable, Dict, Iterable
-from weakref import WeakSet
 
 from rich import print_json
 from textual import on, work
@@ -16,11 +15,11 @@ from textual.timer import Timer
 from textual.widgets import Footer, Header
 
 from .screens import (
+    InfoScreen,
+    OldJobsScreen,
+    SettingsScreen,
     SortableDataTable,
     get_confirm_screen,
-    get_info_screen,
-    get_old_jobs_screen,
-    get_settings_screen,
 )
 from .screens.utils import ColumnManager
 from .slurm_utils import (
@@ -77,6 +76,10 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     job_table = None
     jobs_to_be_deleted = []
+    _update_timer: Timer = None
+
+    def _effective_update_interval(self) -> int:
+        return settings.UPDATE_INTERVAL * (5 if settings.CHECK_ALL_JOBS else 1)
 
     def _display_job_table(self) -> None:
         try:
@@ -88,7 +91,12 @@ class SlurmTUI(App[SlurmTUIReturn]):
         old_cursor = job_table.cursor_coordinate
         self.running_jobs_dict = get_running_jobs(settings=settings)
         if isinstance(self.running_jobs_dict, CommandNotFoundError):
-            self.exit(SlurmTUIReturn("print", {"string_to_print": self.running_jobs_dict.message}), return_code=1)
+            self.exit(
+                SlurmTUIReturn(
+                    "print", {"string_to_print": self.running_jobs_dict.message}
+                ),
+                return_code=1,
+            )
             return
 
         job_array_exists = check_for_any_job_array(self.running_jobs_dict)
@@ -210,12 +218,16 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     def _update_job_table(self) -> None:
         self._display_job_table()
-        self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
+        self._update_timer = self.set_timer(
+            self._effective_update_interval(), self._update_job_table
+        )
 
     def on_mount(self) -> None:
         self.theme = settings.THEME
         self._display_job_table()
-        self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
+        self._update_timer = self.set_timer(
+            self._effective_update_interval(), self._update_job_table
+        )
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -396,8 +408,17 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     def action_settings(self) -> None:
         """Show the settings."""
-        settings_screen = get_settings_screen(self.BINDINGS)
-        self.push_screen(settings_screen())
+
+        def apply_settings(saved: bool) -> None:
+            if saved:
+                self.theme = settings.THEME
+                if self._update_timer is not None:
+                    self._update_timer.stop()
+                self._update_timer = self.set_timer(
+                    self._effective_update_interval(), self._update_job_table
+                )
+
+        self.push_screen(SettingsScreen(), apply_settings)
 
     def action_info(self) -> None:
         """Show the job info."""
@@ -416,21 +437,21 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         def print_cli(string_to_print: str) -> None:
             """Print the string to the CLI."""
-            self.exit(SlurmTUIReturn("print_json", {"string_to_print": string_to_print}))
+            self.exit(
+                SlurmTUIReturn("print_json", {"string_to_print": string_to_print})
+            )
 
-        info_screen = get_info_screen(self.BINDINGS)
-        self.push_screen(info_screen(selected_job), print_cli)
+        self.push_screen(InfoScreen(selected_job), print_cli)
 
     @work
     async def action_old_jobs(self) -> None:
         """Show the old jobs."""
-        for timer in self._timers:
-            timer.stop()
-        self._timers.clear()
-        self._timers = WeakSet()
-        old_jobs_screen = get_old_jobs_screen(self.BINDINGS)
-        await self.push_screen_wait(old_jobs_screen(settings=settings))
-        self.set_timer(settings.UPDATE_INTERVAL, self._update_job_table)
+        if self._update_timer is not None:
+            self._update_timer.stop()
+        await self.push_screen_wait(OldJobsScreen(settings=settings))
+        self._update_timer = self.set_timer(
+            self._effective_update_interval(), self._update_job_table
+        )
 
     def action_quit(self) -> None:
         """Quit the application."""

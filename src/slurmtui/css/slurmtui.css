@@ -80,6 +80,10 @@ ConfirmScreen {
     width: 30;
 }
 
+OldJobsScreen {
+    background: $background 100%;
+}
+
 /* #button_THEME {
     height: 3;
     width: 30;
