@@ -245,7 +245,7 @@ class OldJobsScreen(ModalScreen):
             return
 
         with self.app.suspend():
-            os.system(f"tail -n 10000 -f {log_path}")
+            os.system(f"tail -n {self.settings.TAIL_LINES} -f {log_path}")
 
         self.refresh()
 

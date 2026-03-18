@@ -34,6 +34,10 @@ class SETTINGS:
         default=None,
         metadata="Account filter list (comma-separated on input). Workaround for squeue --json bug < 24.05.1",
     )
+    TAIL_LINES: int = field(
+        default=10000,
+        metadata="Number of lines to show when tailing logs",
+    )
     OLD_JOBS_END_TIME: str = field(
         default="now",
         metadata="End time for old jobs query (sacct time format)",
@@ -92,6 +96,12 @@ class SETTINGS:
                 style="yellow",
             )
             data["THEME"] = _defaults["THEME"]
+
+        for key in ("TAIL_LINES",):
+            try:
+                data[key] = max(1, int(data[key]))
+            except (TypeError, ValueError):
+                data[key] = _defaults[key]
 
         # Non-empty strings with fallback to defaults
         for key in ("OLD_JOBS_START_TIME", "OLD_JOBS_END_TIME"):

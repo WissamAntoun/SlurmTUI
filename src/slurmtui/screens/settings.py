@@ -114,6 +114,15 @@ class SettingsScreen(ModalScreen[bool]):
                 )
 
             with Horizontal(classes="settings_row"):
+                yield Label("Tail Lines", classes="settings_label")
+                yield Input(
+                    str(settings.TAIL_LINES),
+                    id="input_TAIL_LINES",
+                    placeholder="10000",
+                    tooltip="Number of lines to show when tailing logs",
+                )
+
+            with Horizontal(classes="settings_row"):
                 yield Label("Old Jobs Start Time", classes="settings_label")
                 yield Input(
                     settings.OLD_JOBS_START_TIME,
