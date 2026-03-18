@@ -5,6 +5,7 @@
 A simple Terminal UI for monitoring SLURM jobs.
 
 ### Note: SlurmTUI requires slurm 21.08 or later for the Json output support.
+### Note: Viewing old logs requires slurm 24.05 or later.
 
 ## Installation
 ```bash
@@ -33,7 +34,7 @@ slurmtui --account my_account
 
 - [x] View old jobs
 - [x] Filtering jobs when launching
-- [ ] Sorting
+- [x] Sorting
 - [ ] Options other than tail for logs
 - [x] Faster launch
 - [x] Remove Array columns if no job array exists
