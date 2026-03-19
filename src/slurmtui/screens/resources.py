@@ -16,7 +16,6 @@ from ..slurm_utils import (
     get_running_jobs,
 )
 from ..utils import SETTINGS
-
 from .sortable_data_table import SortableDataTable
 
 BAR_WIDTH = 20
@@ -154,6 +153,7 @@ class PartitionCard(Static):
             border_style="cyan",
             expand=True,
             title_align="left",
+            subtitle_align="left",
         )
 
     def on_click(self) -> None:
@@ -196,9 +196,7 @@ class PartitionDetailScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        yield SortableDataTable(
-            zebra_stripes=True, id="partition_detail_table"
-        )
+        yield SortableDataTable(zebra_stripes=True, id="partition_detail_table")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -240,12 +238,8 @@ class PartitionDetailScreen(ModalScreen):
             jobs_on_node = self.node_to_jobs.get(node_name, [])
             if jobs_on_node:
                 job_ids = ", ".join(str(j["job_id"]) for j in jobs_on_node)
-                users = ", ".join(
-                    sorted(set(j["user"] for j in jobs_on_node))
-                )
-                names = ", ".join(
-                    sorted(set(j["name"] for j in jobs_on_node))
-                )
+                users = ", ".join(sorted(set(j["user"] for j in jobs_on_node)))
+                names = ", ".join(sorted(set(j["name"] for j in jobs_on_node)))
             else:
                 job_ids = ""
                 users = ""
@@ -284,15 +278,11 @@ class PartitionDetailScreen(ModalScreen):
         node_name = self._node_names[row_idx]
         jobs_on_node = self.node_to_jobs.get(node_name, [])
         if not jobs_on_node:
-            self.notify(
-                f"No running jobs on {node_name}", severity="warning"
-            )
+            self.notify(f"No running jobs on {node_name}", severity="warning")
             return
 
         # Fetch the full job dict to pass to InfoScreen
-        all_jobs = get_running_jobs(
-            settings=self._get_all_jobs_settings()
-        )
+        all_jobs = get_running_jobs(settings=self._get_all_jobs_settings())
         if not all_jobs or isinstance(all_jobs, CommandNotFoundError):
             self.notify("Could not fetch job details", severity="error")
             return
@@ -300,9 +290,7 @@ class PartitionDetailScreen(ModalScreen):
         job_id = jobs_on_node[0]["job_id"]
         job_info = all_jobs.get(job_id)
         if not job_info:
-            self.notify(
-                f"Job {job_id} no longer in queue", severity="warning"
-            )
+            self.notify(f"Job {job_id} no longer in queue", severity="warning")
             return
 
         from .info import InfoScreen
