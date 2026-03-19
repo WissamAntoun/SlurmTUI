@@ -174,6 +174,14 @@ class SettingsScreen(ModalScreen[bool]):
                     tooltip="JSON file path to substitute for sacct output (debug/testing)",
                 )
 
+            with Horizontal(classes="settings_row"):
+                yield Label("Debug Sinfo JSON Path", classes="settings_label")
+                yield Input(
+                    settings.DEBUG_SINFO_JSON_PATH or "",
+                    id="input_DEBUG_SINFO_JSON_PATH",
+                    tooltip="JSON file path to substitute for sinfo output (debug/testing)",
+                )
+
         yield Footer()
 
     def action_save_settings(self) -> None:
@@ -238,6 +246,9 @@ class SettingsScreen(ModalScreen[bool]):
 
         sacct_path = self.query_one("#input_DEBUG_SACCT_JSON_PATH", Input).value.strip()
         settings.DEBUG_SACCT_JSON_PATH = sacct_path or None
+
+        sinfo_path = self.query_one("#input_DEBUG_SINFO_JSON_PATH", Input).value.strip()
+        settings.DEBUG_SINFO_JSON_PATH = sinfo_path or None
 
         settings.save()
         self.notify("Settings saved")
