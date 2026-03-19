@@ -1,11 +1,12 @@
 import datetime
 import json
 import os
+import re
 import subprocess
 import sys
 from ast import literal_eval
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 from .utils import SETTINGS, console
 
@@ -24,6 +25,14 @@ def get_fake_sacct(debug_sacct_json_path: str = None):
             return f.read()
     else:
         return json.dumps({"jobs": []})
+
+
+def get_fake_sinfo(debug_sinfo_json_path: str = None):
+    if debug_sinfo_json_path:
+        with open(debug_sinfo_json_path, "r") as f:
+            return f.read()
+    else:
+        return json.dumps({"sinfo": []})
 
 
 def get_time(time_field) -> str:
@@ -323,6 +332,190 @@ def get_job_resources(job_dict):
     if not job_dict or job_dict is None:
         return {}
     return job_dict.get("job_resources", {}) or {}
+
+
+def parse_gres_count(gres_str: str) -> Tuple[str, int]:
+    """Parse GRES string like 'gpu:8(S:0-1)' or 'gpu:h100:4(S:0-1)'.
+
+    Returns (gpu_type, count_per_node).
+    """
+    if not gres_str:
+        return ("", 0)
+    match = re.match(r"gpu:(?:(\w+):)?(\d+)", gres_str)
+    if match:
+        gpu_type = match.group(1) or "UNK"
+        count = int(match.group(2))
+        return (gpu_type, count)
+    return ("", 0)
+
+
+def get_resources(settings: SETTINGS) -> Dict[str, Dict]:
+    """Get cluster resource information from sinfo --json, aggregated by partition."""
+    if settings.MOCK:
+        raw = get_fake_sinfo(settings.DEBUG_SINFO_JSON_PATH)
+    else:
+        try:
+            raw = subprocess.check_output(
+                ["sinfo", "--json"], stderr=subprocess.DEVNULL
+            ).decode("utf-8")
+        except subprocess.CalledProcessError:
+            return None
+        except FileNotFoundError:
+            return CommandNotFoundError("`sinfo` command not found")
+
+    data = json.loads(raw)
+
+    partitions = {}
+    for entry in data.get("sinfo", []):
+        partition_name = entry["partition"]["name"]
+        if partition_name not in partitions:
+            partitions[partition_name] = {
+                "nodes_total": 0,
+                "nodes_allocated": 0,
+                "nodes_idle": 0,
+                "nodes_other": 0,
+                "nodes_mixed": 0,
+                "cpus_total": 0,
+                "cpus_allocated": 0,
+                "cpus_idle": 0,
+                "cpus_other": 0,
+                "gpus_per_node": 0,
+                "gpu_type": "",
+                "gpus_total": 0,
+                "features": "",
+                "node_groups": [],
+            }
+
+        p = partitions[partition_name]
+        nodes_in_group = entry["nodes"]["total"]
+        node_states = entry.get("node", {}).get("state", [])
+        is_mixed = "MIXED" in node_states
+
+        p["nodes_total"] += nodes_in_group
+        p["nodes_idle"] += entry["nodes"]["idle"]
+        p["nodes_other"] += entry["nodes"]["other"]
+
+        # In sinfo JSON, MIXED nodes are reported as "allocated" in the
+        # nodes breakdown.  Track them separately to avoid double-counting.
+        if is_mixed:
+            p["nodes_mixed"] += nodes_in_group
+        else:
+            p["nodes_allocated"] += entry["nodes"]["allocated"]
+
+        p["cpus_total"] += entry["cpus"]["total"]
+        p["cpus_allocated"] += entry["cpus"]["allocated"]
+        p["cpus_idle"] += entry["cpus"]["idle"]
+        p["cpus_other"] += entry["cpus"]["other"]
+
+        gres_total = entry.get("gres", {}).get("total", "")
+        gpu_type, gpu_count = parse_gres_count(gres_total)
+        if gpu_count > 0:
+            p["gpus_per_node"] = gpu_count
+            p["gpu_type"] = gpu_type
+            p["gpus_total"] += nodes_in_group * gpu_count
+
+        # Capture features as a fallback when no GPU GRES is present
+        features_total = entry.get("features", {}).get("total", "")
+        if features_total and not p["features"]:
+            p["features"] = features_total
+
+        # Collect per-node-group details for the detail view
+        memory = entry.get("memory", {})
+        mem_total = memory.get("maximum", 0)
+        mem_alloc = memory.get("allocated", 0)
+        node_names = entry.get("nodes", {}).get("nodes", [])
+        gres_used = entry.get("gres", {}).get("used", "")
+
+        for node_name in node_names:
+            p["node_groups"].append(
+                {
+                    "node": node_name,
+                    "state": ", ".join(node_states),
+                    "cpus_total": entry["cpus"]["total"] // max(nodes_in_group, 1),
+                    "cpus_allocated": entry["cpus"]["allocated"]
+                    // max(nodes_in_group, 1),
+                    "mem_total_mb": mem_total,
+                    "mem_alloc_mb": mem_alloc // max(nodes_in_group, 1),
+                    "gres": gres_total,
+                    "gres_used": gres_used,
+                    "features": features_total,
+                }
+            )
+
+    return partitions
+
+
+def expand_hostlist(hostlist: str) -> List[str]:
+    """Expand a Slurm compressed hostlist like 'node[1-3,5]' into individual names.
+
+    Handles formats: 'node1', 'node[1-3]', 'node[01-03,05]', 'r1i0n[0-35],r2i0n[0-35]',
+    and comma-separated bare names like 'node1,node2'.
+    """
+    if not hostlist or not hostlist.strip():
+        return []
+
+    results = []
+    # Tokenise: split on commas that are NOT inside brackets
+    depth = 0
+    current = []
+    for ch in hostlist:
+        if ch == "[":
+            depth += 1
+            current.append(ch)
+        elif ch == "]":
+            depth -= 1
+            current.append(ch)
+        elif ch == "," and depth == 0:
+            results.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+    if current:
+        results.append("".join(current))
+
+    expanded = []
+    for token in results:
+        m = re.match(r"^(.*?)\[([^\]]+)\](.*)$", token)
+        if not m:
+            expanded.append(token)
+            continue
+        prefix, range_spec, suffix = m.group(1), m.group(2), m.group(3)
+        for part in range_spec.split(","):
+            if "-" in part:
+                lo, hi = part.split("-", 1)
+                width = len(lo)
+                for i in range(int(lo), int(hi) + 1):
+                    expanded.append(f"{prefix}{str(i).zfill(width)}{suffix}")
+            else:
+                expanded.append(f"{prefix}{part}{suffix}")
+
+    return expanded
+
+
+def build_node_to_jobs(jobs_dict: Dict[int, Dict]) -> Dict[str, List[Dict]]:
+    """Build a mapping from node name to list of jobs running on it."""
+    node_to_jobs: Dict[str, List[Dict]] = {}
+    if not jobs_dict:
+        return node_to_jobs
+    for job in jobs_dict.values():
+        job_state = job.get("job_state", "")
+        if isinstance(job_state, list):
+            if not any(s == "RUNNING" for s in job_state):
+                continue
+        elif job_state != "RUNNING":
+            continue
+        nodes_str = str(job.get("nodes", ""))
+        for node in expand_hostlist(nodes_str):
+            node_to_jobs.setdefault(node, []).append(
+                {
+                    "job_id": job.get("job_id", ""),
+                    "user": job.get("user_name", ""),
+                    "name": str(job.get("name", ""))[:40],
+                    "partition": job.get("partition", ""),
+                    "job_state": job_state,
+                }
+            )
+    return node_to_jobs
 
 
 class SlurmTUIReturn:

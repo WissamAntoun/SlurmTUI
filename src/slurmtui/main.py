@@ -17,6 +17,7 @@ from textual.widgets import Footer, Header
 from .screens import (
     InfoScreen,
     OldJobsScreen,
+    ResourcesScreen,
     SettingsScreen,
     SortableDataTable,
     get_confirm_screen,
@@ -73,6 +74,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         Binding("i", "info", "Info", key_display="I"),
         Binding("d", "delete", "Delete", key_display="D"),
         Binding("o", "old_jobs", "Old Jobs", key_display="O"),
+        Binding("r", "resources", "Resources", key_display="R"),
         Binding("s", "settings", "Settings", key_display="S"),
         Binding("q", "quit", "Quit", key_display="Q"),
         # fmt: on
@@ -482,6 +484,16 @@ class SlurmTUI(App[SlurmTUIReturn]):
         if self._update_timer is not None:
             self._update_timer.stop()
         await self.push_screen_wait(OldJobsScreen(settings=settings))
+        self._update_timer = self.set_timer(
+            self._effective_update_interval(), self._update_job_table
+        )
+
+    @work
+    async def action_resources(self) -> None:
+        """Show cluster resources."""
+        if self._update_timer is not None:
+            self._update_timer.stop()
+        await self.push_screen_wait(ResourcesScreen(settings=settings))
         self._update_timer = self.set_timer(
             self._effective_update_interval(), self._update_job_table
         )

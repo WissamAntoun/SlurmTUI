@@ -84,6 +84,14 @@ OldJobsScreen {
     background: $background 100%;
 }
 
+ResourcesScreen {
+    background: $background 100%;
+}
+
+PartitionDetailScreen {
+    background: $background 100%;
+}
+
 /* #button_THEME {
     height: 3;
     width: 30;

@@ -60,6 +60,9 @@ class SETTINGS:
     DEBUG_SACCT_JSON_PATH: Optional[str] = field(
         default=None, metadata="JSON file to substitute for sacct output"
     )
+    DEBUG_SINFO_JSON_PATH: Optional[str] = field(
+        default=None, metadata="JSON file to substitute for sinfo output"
+    )
 
     def save(self) -> None:
         SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -163,7 +166,7 @@ class SETTINGS:
                 data[key] = None
 
         # Optional str
-        for key in ("DEBUG_SQUEUE_JSON_PATH", "DEBUG_SACCT_JSON_PATH"):
+        for key in ("DEBUG_SQUEUE_JSON_PATH", "DEBUG_SACCT_JSON_PATH", "DEBUG_SINFO_JSON_PATH"):
             v = data.get(key)
             if v is not None and not isinstance(v, str):
                 data[key] = None
