@@ -35,7 +35,7 @@ slurmtui --account my_account
 - [x] View old jobs
 - [x] Filtering jobs when launching
 - [x] Sorting
-- [ ] Options other than tail for logs
+- [x] Options other than tail for logs
 - [x] Faster launch
 - [x] Remove Array columns if no job array exists
 - [ ] Search

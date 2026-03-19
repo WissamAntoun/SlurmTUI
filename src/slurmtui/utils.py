@@ -34,6 +34,14 @@ class SETTINGS:
         default=None,
         metadata="Account filter list (comma-separated on input). Workaround for squeue --json bug < 24.05.1",
     )
+    PRIMARY_TEXT_UTIL_CMD: str = field(
+        default="tail",
+        metadata="Command to use to open the logs file. Should have a placeholder for the file path, e.g. 'less +F {log_path}' or 'tail -f {log_path}'. ",
+    )
+    SECONDARY_TEXT_UTIL_CMD: str = field(
+        default="less",
+        metadata="Command to use to open the secondary logs file (e.g. STDERR). Should have a placeholder for the file path, e.g. 'less +F {log_path}' or 'tail -f {log_path}'. ",
+    )
     TAIL_LINES: int = field(
         default=10000,
         metadata="Number of lines to show when tailing logs",
@@ -96,6 +104,42 @@ class SETTINGS:
                 style="yellow",
             )
             data["THEME"] = _defaults["THEME"]
+
+        if data.get("PRIMARY_TEXT_UTIL_CMD") is not None and not isinstance(
+            data["PRIMARY_TEXT_UTIL_CMD"], str
+        ):
+            console.print(
+                f"Invalid PRIMARY_TEXT_UTIL_CMD '{data.get('PRIMARY_TEXT_UTIL_CMD')}', reverting to default",
+                style="yellow",
+            )
+            data["PRIMARY_TEXT_UTIL_CMD"] = _defaults["PRIMARY_TEXT_UTIL_CMD"]
+
+        if data.get("SECONDARY_TEXT_UTIL_CMD") is not None and not isinstance(
+            data["SECONDARY_TEXT_UTIL_CMD"], str
+        ):
+            console.print(
+                f"Invalid SECONDARY_TEXT_UTIL_CMD '{data.get('SECONDARY_TEXT_UTIL_CMD')}', reverting to default",
+                style="yellow",
+            )
+            data["SECONDARY_TEXT_UTIL_CMD"] = _defaults["SECONDARY_TEXT_UTIL_CMD"]
+
+        if (
+            data.get("PRIMARY_TEXT_UTIL_CMD") is not None
+            and data["PRIMARY_TEXT_UTIL_CMD"] not in ("tail", "less")
+            and "{log_path}" not in data["PRIMARY_TEXT_UTIL_CMD"]
+        ):
+            data["PRIMARY_TEXT_UTIL_CMD"] = (
+                f"{data['PRIMARY_TEXT_UTIL_CMD']} {{log_path}}"
+            )
+
+        if (
+            data.get("SECONDARY_TEXT_UTIL_CMD") is not None
+            and data["SECONDARY_TEXT_UTIL_CMD"] not in ("tail", "less")
+            and "{log_path}" not in data["SECONDARY_TEXT_UTIL_CMD"]
+        ):
+            data["SECONDARY_TEXT_UTIL_CMD"] = (
+                f"{data['SECONDARY_TEXT_UTIL_CMD']} {{log_path}}"
+            )
 
         for key in ("TAIL_LINES",):
             try:

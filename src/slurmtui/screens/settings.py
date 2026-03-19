@@ -114,6 +114,24 @@ class SettingsScreen(ModalScreen[bool]):
                 )
 
             with Horizontal(classes="settings_row"):
+                yield Label("Text Util Command", classes="settings_label")
+                yield Input(
+                    settings.PRIMARY_TEXT_UTIL_CMD,
+                    id="input_PRIMARY_TEXT_UTIL_CMD",
+                    placeholder="tail -f {log_path}",
+                    tooltip="Command to use to open log files. Should include '{log_path}' as a placeholder for the log file path.",
+                )
+
+            with Horizontal(classes="settings_row"):
+                yield Label("Secondary Text Util Command", classes="settings_label")
+                yield Input(
+                    settings.SECONDARY_TEXT_UTIL_CMD,
+                    id="input_SECONDARY_TEXT_UTIL_CMD",
+                    placeholder="less +F {log_path}",
+                    tooltip="Command to use to open secondary log files (e.g. STDERR). Should include '{log_path}' as a placeholder for the log file path.",
+                )
+
+            with Horizontal(classes="settings_row"):
                 yield Label("Tail Lines", classes="settings_label")
                 yield Input(
                     str(settings.TAIL_LINES),
@@ -188,6 +206,22 @@ class SettingsScreen(ModalScreen[bool]):
             if accounts_str
             else None
         )
+
+        tail_cmd_str = self.query_one(
+            "#input_PRIMARY_TEXT_UTIL_CMD", Input
+        ).value.strip()
+        settings.PRIMARY_TEXT_UTIL_CMD = tail_cmd_str or "tail"
+
+        tail_cmd_str = self.query_one(
+            "#input_SECONDARY_TEXT_UTIL_CMD", Input
+        ).value.strip()
+        settings.SECONDARY_TEXT_UTIL_CMD = tail_cmd_str or "less"
+
+        tail_lines_str = self.query_one("#input_TAIL_LINES", Input).value.strip()
+        try:
+            settings.TAIL_LINES = max(1, int(tail_lines_str))
+        except (ValueError, TypeError):
+            settings.TAIL_LINES = 10000
 
         # Strings with fallback to defaults
         start = self.query_one("#input_OLD_JOBS_START_TIME", Input).value.strip()
