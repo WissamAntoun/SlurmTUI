@@ -1,6 +1,6 @@
 """Version information for SlurmTUI."""
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 __version_info__ = tuple(map(int, __version__.split(".")))
 
 # Additional version metadata
