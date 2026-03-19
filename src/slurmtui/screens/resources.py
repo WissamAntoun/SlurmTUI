@@ -6,6 +6,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
+from textual.events import Key
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Header, Static
 
@@ -71,13 +72,16 @@ def _state_color(state: str) -> str:
 # ── Partition card (clickable) ──────────────────────────────────────
 
 
-class PartitionCard(Static):
+class PartitionCard(Static, can_focus=True):
     """A card widget displaying partition resource info with progress bars."""
 
     DEFAULT_CSS = """
         PartitionCard {
             height: auto;
-            margin: 0 1 0 1;
+            margin: 0 2 0 2;
+        }
+        PartitionCard:focus {
+            border: none;
         }
     """
 
@@ -146,22 +150,55 @@ class PartitionCard(Static):
             lines.append(f"  [bold]Info [/bold]  [dim]{d['features']}[/dim]")
 
         content = "\n".join(lines)
+        if self.has_focus:
+            border = "bright_white"
+            title = f"[bold]▶ {self.partition_name}[/bold]"
+        else:
+            border = "cyan"
+            title = f"[bold]{self.partition_name}[/bold]"
         return Panel(
             content,
-            title=f"[bold]{self.partition_name}[/bold]",
-            subtitle="[dim]click to expand[/dim]",
-            border_style="cyan",
+            padding=(0, 0, 0, 0),
+            title=title,
+            subtitle="[dim]enter/click to expand[/dim]",
+            border_style=border,
             expand=True,
             title_align="left",
             subtitle_align="left",
         )
 
-    def on_click(self) -> None:
+    def _expand(self) -> None:
         self.app.push_screen(
             PartitionDetailScreen(
                 self.partition_name, self.data, self.node_to_jobs, self.settings
             )
         )
+
+    def on_click(self) -> None:
+        self._expand()
+
+    def on_key(self, event: Key) -> None:
+        cards = list(self.screen.query(PartitionCard))
+        idx = cards.index(self)
+        if event.key == "down":
+            event.stop()
+            event.prevent_default()
+            cards[(idx + 1) % len(cards)].focus()
+        elif event.key == "up":
+            event.stop()
+            event.prevent_default()
+            cards[(idx - 1) % len(cards)].focus()
+        elif event.key == "enter":
+            event.stop()
+            event.prevent_default()
+            self._expand()
+
+    def on_focus(self) -> None:
+        self.refresh()
+        self.scroll_visible()
+
+    def on_blur(self) -> None:
+        self.refresh()
 
 
 # ── Partition detail screen ─────────────────────────────────────────
@@ -362,6 +399,10 @@ class ResourcesScreen(ModalScreen):
             self.app.title = f"SlurmTUI Resources: {len(resources)} partitions"
         else:
             self.app.title = "SlurmTUI Resources"
+        # Focus the first card for keyboard navigation
+        cards = self.query(PartitionCard)
+        if cards:
+            cards.first().focus()
 
     def action_quit(self) -> None:
         from ..slurm_utils import SlurmTUIReturn
