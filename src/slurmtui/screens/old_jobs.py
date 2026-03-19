@@ -85,12 +85,16 @@ def get_time_strings(job: Dict[str, Any]) -> Tuple[str, str, str]:
 class OldJobsScreen(ModalScreen):
 
     BINDINGS = [
+        # fmt: off
         Binding("escape", "screen.dismiss", "Go Back", key_display="Esc"),
-        Binding("l", "logs_out", "Logs (STDOUT)", key_display="L"),
-        Binding("e", "logs_err", "Logs (STDERR)", key_display="E"),
+        Binding("l", "logs_out_tail", "Logs (STDOUT)", key_display="L"),
+        Binding("e", "logs_err_tail", "Logs (STDERR)", key_display="E"),
+        Binding("ctrl+l", "logs_out_less", "Less of Logs (STDOUT)", key_display="Ctrl+L", show=False),
+        Binding("ctrl+e", "logs_err_less", "Less of Logs (STDERR)", key_display="Ctrl+E", show=False),
         Binding("i", "info", "Info", key_display="I"),
         Binding("s", "settings", "Settings", key_display="S"),
         Binding("q", "quit", "Quit", key_display="Q"),
+        # fmt: on
     ]
 
     DEFAULT_CSS = """
@@ -195,7 +199,7 @@ class OldJobsScreen(ModalScreen):
             return True
         return False
 
-    def _get_log_screen(self, is_std_out: bool) -> None:
+    def _get_log_screen(self, is_primary: bool, is_std_out: bool) -> None:
         """Show the logs (STDOUT)."""
         # get the id of the selected job
         try:
@@ -245,19 +249,48 @@ class OldJobsScreen(ModalScreen):
             return
 
         with self.app.suspend():
-            os.system(f"tail -n {self.settings.TAIL_LINES} -f {log_path}")
+            cmd = ""
+
+            if is_primary:
+                text_util_cmd = settings.PRIMARY_TEXT_UTIL_CMD
+            else:
+                text_util_cmd = settings.SECONDARY_TEXT_UTIL_CMD
+
+            if text_util_cmd.lower() == "tail":
+                cmd = f"tail -n {settings.TAIL_LINES} -f {log_path}"
+            elif text_util_cmd.lower() == "less":
+                cmd = f"less {log_path}"
+            else:
+                cmd = text_util_cmd.format(log_path=log_path)
+
+            os.system(cmd)
+            if not any(
+                x in text_util_cmd.lower()
+                for x in ["tail", "less", "nano", "vim", "vi", "micro"]
+            ):
+                input("Press Enter to continue...")
 
         self.refresh()
 
-    def action_logs_out(self) -> None:
+    def action_logs_out_tail(self) -> None:
         """Show the logs (STDOUT)."""
         # get the id of the selected job
-        self._get_log_screen(is_std_out=True)
+        self._get_log_screen(is_primary=True, is_std_out=True)
 
-    def action_logs_err(self) -> None:
+    def action_logs_err_tail(self) -> None:
         """Show the logs (STDERR)."""
         # get the id of the selected job
-        self._get_log_screen(is_std_out=False)
+        self._get_log_screen(is_primary=True, is_std_out=False)
+
+    def action_logs_out_less(self) -> None:
+        """Show the logs (STDOUT) with less."""
+        # get the id of the selected job
+        self._get_log_screen(is_primary=False, is_std_out=True)
+
+    def action_logs_err_less(self) -> None:
+        """Show the logs (STDERR) with less."""
+        # get the id of the selected job
+        self._get_log_screen(is_primary=False, is_std_out=False)
 
     def action_settings(self) -> None:
         """Show the settings."""
@@ -283,10 +316,10 @@ class OldJobsScreen(ModalScreen):
 
         def print_cli(string_to_print: str) -> None:
             """Print the string to the CLI."""
-            self.exit(SlurmTUIReturn("print", {"string_to_print": string_to_print}))
+            self.app.exit(SlurmTUIReturn("print", {"string_to_print": string_to_print}))
 
         self.app.push_screen(InfoScreen(selected_job), print_cli)
 
-    # def action_quit(self) -> None:
-    #     """Quit the application."""
-    #     self.exit(SlurmTUIReturn("quit", {}))
+    def action_quit(self) -> None:
+        """Quit the application."""
+        self.app.exit(SlurmTUIReturn("quit", {}))
