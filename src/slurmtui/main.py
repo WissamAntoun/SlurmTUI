@@ -2,6 +2,7 @@ import argparse
 import datetime
 import os
 import sys
+import urllib.request
 from typing import Any, Callable, Dict, Iterable
 
 from rich import print_json
@@ -33,7 +34,7 @@ from .slurm_utils import (
     get_running_jobs,
     get_start_and_end_time_string,
 )
-from .utils import settings
+from .utils import get_last_update_check, set_last_update_check, settings
 
 DEFAULT_COLUMNS = {
     "Job id": True,
@@ -234,6 +235,30 @@ class SlurmTUI(App[SlurmTUIReturn]):
         self._update_timer = self.set_timer(
             self._effective_update_interval(), self._update_job_table
         )
+        last_check = get_last_update_check()
+        if last_check is None or (datetime.date.today() - last_check).days >= 30:
+            self._check_for_update()
+
+    @work(thread=True)
+    def _check_for_update(self) -> None:
+        from . import __version__
+
+        try:
+            set_last_update_check()
+            url = "https://pypi.org/pypi/slurmtui/json"
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                data = __import__("json").loads(resp.read())
+            latest = data["info"]["version"]
+            if latest != __version__:
+                self.call_from_thread(
+                    self.notify,
+                    f"SlurmTUI {latest} is available (you have {__version__}).\nRun: pip install --upgrade slurmtui",
+                    title="Update available",
+                    severity="information",
+                    timeout=10,
+                )
+        except Exception:
+            pass
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)

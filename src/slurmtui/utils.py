@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 from dataclasses import asdict, dataclass, field, fields
@@ -13,6 +14,22 @@ _default_config_dir = Path.home() / ".config" / "slurmtui"
 SETTINGS_FILE = Path(
     os.environ.get("SLURMTUI_SETTINGS", _default_config_dir / "settings.json")
 )
+_UPDATE_STATE_FILE = _default_config_dir / "update_check.json"
+
+
+def get_last_update_check() -> Optional[datetime.date]:
+    try:
+        with open(_UPDATE_STATE_FILE) as f:
+            data = json.load(f)
+        return datetime.date.fromisoformat(data["last_check"])
+    except Exception:
+        return None
+
+
+def set_last_update_check() -> None:
+    _default_config_dir.mkdir(parents=True, exist_ok=True)
+    with open(_UPDATE_STATE_FILE, "w") as f:
+        json.dump({"last_check": datetime.date.today().isoformat()}, f)
 
 
 @dataclass
