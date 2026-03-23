@@ -232,6 +232,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     def action_force_refresh(self) -> None:
         """Force an immediate refresh of the jobs table and reset the timer."""
+        self.notify("Refreshing jobs...", severity="information", timeout=1.5)
         if self._update_timer is not None:
             self._update_timer.stop()
         self._update_job_table()
