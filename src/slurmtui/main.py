@@ -69,6 +69,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         # fmt: off
         Binding("l", "logs_out_tail", "Logs (STDOUT)", key_display="L"),
         Binding("e", "logs_err_tail", "Logs (STDERR)", key_display="E"),
+        Binding("ctrl+r", "force_refresh", "Force Refresh", key_display="Ctrl+R", show=False),
         Binding("ctrl+l", "logs_out_less", "Less of Logs (STDOUT)", key_display="Ctrl+L", show=False),
         Binding("ctrl+e", "logs_err_less", "Less of Logs (STDERR)", key_display="Ctrl+E", show=False),
         Binding("c", "connect", "Connect to Node (ssh)", key_display="C"),
@@ -228,6 +229,12 @@ class SlurmTUI(App[SlurmTUIReturn]):
         self._update_timer = self.set_timer(
             self._effective_update_interval(), self._update_job_table
         )
+
+    def action_force_refresh(self) -> None:
+        """Force an immediate refresh of the jobs table and reset the timer."""
+        if self._update_timer is not None:
+            self._update_timer.stop()
+        self._update_job_table()
 
     def on_mount(self) -> None:
         self.theme = settings.THEME
