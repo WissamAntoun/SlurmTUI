@@ -62,6 +62,19 @@ ConfirmScreen {
     content-align: left middle;
 }
 
+#label_VERSION_VALUE {
+    height: 3;
+    width: auto;
+    content-align: left middle;
+}
+
+#label_VERSION_LATEST {
+    height: 3;
+    width: auto;
+    content-align: left middle;
+    color: $warning;
+}
+
 .settings_button {
     height: 3;
     width: 30;

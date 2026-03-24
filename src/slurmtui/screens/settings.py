@@ -1,5 +1,8 @@
+import json
+import urllib.request
 from typing import Any, List
 
+from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
@@ -7,6 +10,7 @@ from textual.screen import ModalScreen, Screen
 from textual.theme import BUILTIN_THEMES
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, OptionList
 
+from .. import __version__
 from ..utils import settings
 
 SCREEN_BINDINGS = [
@@ -56,10 +60,31 @@ class SettingsScreen(ModalScreen[bool]):
 
     def on_mount(self) -> None:
         self.app.title = "SlurmTUI Settings"
+        self._fetch_latest_version()
+
+    @work(thread=True)
+    def _fetch_latest_version(self) -> None:
+        try:
+            url = "https://pypi.org/pypi/slurmtui/json"
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                data = json.loads(resp.read())
+            latest = data["info"]["version"]
+            if latest != __version__:
+                self.call_from_thread(
+                    self.query_one("#label_VERSION_LATEST", Label).update,
+                    f"  ⚠ v{latest} available",
+                )
+        except Exception:
+            pass
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True, name="SlurmTUI Settings", id="settings_header")
         with VerticalScroll():
+            with Horizontal(classes="settings_row"):
+                yield Label("Version", classes="settings_label")
+                yield Label(f"v{__version__}", id="label_VERSION_VALUE")
+                yield Label("", id="label_VERSION_LATEST")
+
             with Horizontal(classes="settings_row"):
                 yield Label("Theme", classes="settings_label")
                 yield Label(self._selected_theme, id="label_THEME_VALUE")
