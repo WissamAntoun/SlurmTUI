@@ -141,6 +141,15 @@ class SettingsScreen(ModalScreen[bool]):
                 )
 
             with Horizontal(classes="settings_row"):
+                yield Label("Peek Lines", classes="settings_label")
+                yield Input(
+                    str(settings.PEEK_LINES),
+                    id="input_PEEK_LINES",
+                    placeholder="100",
+                    tooltip="Number of lines to show in the log peek popup (Space / Ctrl+Space)",
+                )
+
+            with Horizontal(classes="settings_row"):
                 yield Label("Old Jobs Start Time", classes="settings_label")
                 yield Input(
                     settings.OLD_JOBS_START_TIME,
@@ -230,6 +239,12 @@ class SettingsScreen(ModalScreen[bool]):
             settings.TAIL_LINES = max(1, int(tail_lines_str))
         except (ValueError, TypeError):
             settings.TAIL_LINES = 10000
+
+        peek_lines_str = self.query_one("#input_PEEK_LINES", Input).value.strip()
+        try:
+            settings.PEEK_LINES = max(1, int(peek_lines_str))
+        except (ValueError, TypeError):
+            settings.PEEK_LINES = 100
 
         # Strings with fallback to defaults
         start = self.query_one("#input_OLD_JOBS_START_TIME", Input).value.strip()

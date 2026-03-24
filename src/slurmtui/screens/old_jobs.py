@@ -10,6 +10,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Footer, Header
 
 from slurmtui.screens.info import InfoScreen
+from slurmtui.screens.log_peek import LogPeekScreen
 
 from ..slurm_utils import (
     SlurmTUIReturn,
@@ -91,6 +92,8 @@ class OldJobsScreen(ModalScreen):
         Binding("e", "logs_err_tail", "Logs (STDERR)", key_display="E"),
         Binding("ctrl+l", "logs_out_less", "Less of Logs (STDOUT)", key_display="Ctrl+L", show=False),
         Binding("ctrl+e", "logs_err_less", "Less of Logs (STDERR)", key_display="Ctrl+E", show=False),
+        Binding("space", "peek_stdout", "Peek STDOUT", key_display="Space"),
+        Binding("ctrl+space", "peek_stderr", "Peek STDERR", key_display="Ctrl+Space", show=False),
         Binding("i", "info", "Info", key_display="I"),
         Binding("s", "settings", "Settings", key_display="S"),
         Binding("q", "quit", "Quit", key_display="Q"),
@@ -291,6 +294,56 @@ class OldJobsScreen(ModalScreen):
         """Show the logs (STDERR) with less."""
         # get the id of the selected job
         self._get_log_screen(is_primary=False, is_std_out=False)
+
+    def _peek_log(self, is_std_out: bool) -> None:
+        """Show the last N lines of a log file in a popup."""
+        try:
+            job_table = self.query_one(SortableDataTable)
+            self.job_table = job_table
+        except NoMatches:
+            job_table = self.job_table
+
+        if self._check_no_jobs():
+            return
+
+        selected_job = list(self.old_jobs.values())[job_table.cursor_coordinate.row]
+
+        if check_for_state(selected_job["state"]["current"], "PENDING"):
+            self.notify(
+                f"Job {selected_job['job_id']} is in Pending state, no logs available!",
+                severity="warning",
+            )
+            return
+
+        key = "stdout_expanded" if is_std_out else "stderr_expanded"
+        if not selected_job.get(key, ""):
+            stream = "standard output" if is_std_out else "standard error"
+            self.notify(
+                f"Job {selected_job['job_id']} has no {stream}!. This may be due to slurm version being < 24.05",
+                severity="warning",
+            )
+            return
+
+        log_path = selected_job[key]
+
+        if not os.path.isfile(log_path):
+            self.notify(
+                "Log file not created yet or not found!" f"\n{log_path}",
+                severity="error",
+            )
+            return
+
+        stream = "STDOUT" if is_std_out else "STDERR"
+        title = f"Peek {stream}: {selected_job['name']} ({selected_job['job_id']})"
+        self.app.push_screen(LogPeekScreen(log_path, settings.PEEK_LINES, title))
+
+    def action_peek_stdout(self) -> None:
+        """Peek at the last N lines of STDOUT."""
+        self._peek_log(is_std_out=True)
+
+    def action_peek_stderr(self) -> None:
+        """Peek at the last N lines of STDERR."""
+        self._peek_log(is_std_out=False)
 
     def action_settings(self) -> None:
         """Show the settings."""

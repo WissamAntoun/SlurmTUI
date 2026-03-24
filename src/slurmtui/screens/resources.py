@@ -8,6 +8,7 @@ from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
 from textual.events import Key
 from textual.screen import ModalScreen
+from textual.timer import Timer
 from textual.widgets import Footer, Header, Static
 
 from ..slurm_utils import (
@@ -208,6 +209,7 @@ class PartitionDetailScreen(ModalScreen):
     """Detail view showing all nodes in a partition with job info."""
 
     BINDINGS = [
+        Binding("ctrl+r", "force_refresh", "Force Refresh", key_display="Ctrl+R"),
         Binding("i", "info", "Job Info", key_display="I"),
         Binding("escape", "screen.dismiss", "Go Back", key_display="Esc"),
         Binding("q", "quit", "Quit", key_display="Q"),
@@ -230,16 +232,48 @@ class PartitionDetailScreen(ModalScreen):
         self.settings = settings
         # Ordered list of node names matching table rows
         self._node_names: list[str] = []
+        self._refresh_timer: Timer | None = None
 
-    def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-        yield SortableDataTable(zebra_stripes=True, id="partition_detail_table")
-        yield Footer()
+    def _refresh_interval(self) -> int:
+        return self.settings.UPDATE_INTERVAL
 
-    def on_mount(self) -> None:
-        self.app.title = f"SlurmTUI: {self.partition_name}"
+    def _refresh_content(self) -> None:
+        resources = get_resources(self.settings)
+        if isinstance(resources, CommandNotFoundError):
+            self.notify(
+                f"Could not refresh resources: {resources.message}", severity="error"
+            )
+            return
+        if not resources:
+            self.notify("No resource information available", severity="warning")
+            return
 
+        partition_data = resources.get(self.partition_name)
+        if partition_data is None:
+            self.notify(
+                f"Partition {self.partition_name} is no longer available",
+                severity="warning",
+            )
+            self.dismiss()
+            return
+
+        all_jobs = get_running_jobs(settings=self._get_all_jobs_settings())
+        if isinstance(all_jobs, CommandNotFoundError):
+            all_jobs = None
+
+        self.data = partition_data
+        self.node_to_jobs = build_node_to_jobs(all_jobs)
+        self._render_table()
+
+    def _update_content(self) -> None:
+        self._refresh_content()
+        self._refresh_timer = self.set_timer(
+            self._refresh_interval(), self._update_content
+        )
+
+    def _render_table(self) -> None:
         table = self.query_one(SortableDataTable)
+        table.clear(columns=True)
         table.cursor_type = "row"
 
         has_gres = any(ng["gres"] for ng in self.data["node_groups"])
@@ -271,7 +305,6 @@ class PartitionDetailScreen(ModalScreen):
             )
             state_col = _state_color(ng["state"])
 
-            # Cross-reference with running jobs
             jobs_on_node = self.node_to_jobs.get(node_name, [])
             if jobs_on_node:
                 job_ids = ", ".join(str(j["job_id"]) for j in jobs_on_node)
@@ -297,6 +330,30 @@ class PartitionDetailScreen(ModalScreen):
             row.extend([job_ids, users, names])
 
             table.add_row(*row, key=node_name)
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=True)
+        yield SortableDataTable(zebra_stripes=True, id="partition_detail_table")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.app.title = f"SlurmTUI: {self.partition_name}"
+        self._refresh_content()
+        self._refresh_timer = self.set_timer(
+            self._refresh_interval(), self._update_content
+        )
+
+    def on_unmount(self) -> None:
+        if self._refresh_timer is not None:
+            self._refresh_timer.stop()
+
+    def action_force_refresh(self) -> None:
+        self.notify(
+            "Refreshing partition details...", severity="information", timeout=1.5
+        )
+        if self._refresh_timer is not None:
+            self._refresh_timer.stop()
+        self._update_content()
 
     def action_info(self) -> None:
         """Show full job info for the job running on the selected node."""
@@ -352,6 +409,7 @@ class PartitionDetailScreen(ModalScreen):
 class ResourcesScreen(ModalScreen):
 
     BINDINGS = [
+        Binding("ctrl+r", "force_refresh", "Force Refresh", key_display="Ctrl+R"),
         Binding("escape", "screen.dismiss", "Go Back", key_display="Esc"),
         Binding("q", "quit", "Quit", key_display="Q"),
     ]
@@ -361,48 +419,87 @@ class ResourcesScreen(ModalScreen):
     def __init__(self, settings: SETTINGS, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.settings = settings
+        self._refresh_timer: Timer | None = None
+
+    def _refresh_interval(self) -> int:
+        return self.settings.UPDATE_INTERVAL
+
+    def _refresh_content(self) -> None:
+        resources = get_resources(self.settings)
+
+        try:
+            container = self.query_one("#partitions_container", VerticalScroll)
+        except NoMatches:
+            return
+
+        container.remove_children()
+
+        if isinstance(resources, CommandNotFoundError):
+            container.mount(Static(f"[red]Error: {resources.message}[/red]"))
+            self.app.title = "SlurmTUI Resources"
+            return
+
+        if not resources:
+            container.mount(
+                Static("[yellow]No resource information available[/yellow]")
+            )
+            self.app.title = "SlurmTUI Resources"
+            return
+
+        all_jobs_settings = deepcopy(self.settings)
+        all_jobs_settings.CHECK_ALL_JOBS = True
+        all_jobs = get_running_jobs(settings=all_jobs_settings)
+        if isinstance(all_jobs, CommandNotFoundError):
+            all_jobs = None
+        node_to_jobs = build_node_to_jobs(all_jobs)
+
+        has_gpus = any(p["gpus_total"] > 0 for p in resources.values())
+        for name in sorted(resources):
+            container.mount(
+                PartitionCard(
+                    name,
+                    resources[name],
+                    has_gpus,
+                    node_to_jobs,
+                    self.settings,
+                )
+            )
+
+        self.app.title = f"SlurmTUI Resources: {len(resources)} partitions"
+
+        cards = self.query(PartitionCard)
+        if cards:
+            cards.first().focus()
+
+    def _update_content(self) -> None:
+        self._refresh_content()
+        self._refresh_timer = self.set_timer(
+            self._refresh_interval(), self._update_content
+        )
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
 
-        resources = get_resources(self.settings)
-
-        if isinstance(resources, CommandNotFoundError):
-            yield Static(f"[red]Error: {resources.message}[/red]")
-        elif not resources:
-            yield Static("[yellow]No resource information available[/yellow]")
-        else:
-            # Fetch all running jobs to cross-reference nodes
-            all_jobs_settings = deepcopy(self.settings)
-            all_jobs_settings.CHECK_ALL_JOBS = True
-            all_jobs = get_running_jobs(settings=all_jobs_settings)
-            if isinstance(all_jobs, CommandNotFoundError):
-                all_jobs = None
-            node_to_jobs = build_node_to_jobs(all_jobs)
-
-            has_gpus = any(p["gpus_total"] > 0 for p in resources.values())
-            with VerticalScroll():
-                for name in sorted(resources):
-                    yield PartitionCard(
-                        name,
-                        resources[name],
-                        has_gpus,
-                        node_to_jobs,
-                        self.settings,
-                    )
+        with VerticalScroll(id="partitions_container"):
+            yield Static("[dim]Loading resources...[/dim]")
 
         yield Footer()
 
     def on_mount(self) -> None:
-        resources = get_resources(self.settings)
-        if resources and not isinstance(resources, CommandNotFoundError):
-            self.app.title = f"SlurmTUI Resources: {len(resources)} partitions"
-        else:
-            self.app.title = "SlurmTUI Resources"
-        # Focus the first card for keyboard navigation
-        cards = self.query(PartitionCard)
-        if cards:
-            cards.first().focus()
+        self._refresh_content()
+        self._refresh_timer = self.set_timer(
+            self._refresh_interval(), self._update_content
+        )
+
+    def on_unmount(self) -> None:
+        if self._refresh_timer is not None:
+            self._refresh_timer.stop()
+
+    def action_force_refresh(self) -> None:
+        self.notify("Refreshing resources...", severity="information", timeout=1.5)
+        if self._refresh_timer is not None:
+            self._refresh_timer.stop()
+        self._update_content()
 
     def action_quit(self) -> None:
         from ..slurm_utils import SlurmTUIReturn

@@ -1,5 +1,6 @@
 from .confirm import get_confirm_screen
 from .info import InfoScreen
+from .log_peek import LogPeekScreen
 from .old_jobs import OldJobsScreen
 from .resources import ResourcesScreen
 from .settings import SettingsScreen

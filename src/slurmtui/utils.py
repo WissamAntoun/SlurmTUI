@@ -63,6 +63,10 @@ class SETTINGS:
         default=10000,
         metadata="Number of lines to show when tailing logs",
     )
+    PEEK_LINES: int = field(
+        default=100,
+        metadata="Number of lines to show in the log peek popup (Space / Ctrl+Space)",
+    )
     OLD_JOBS_END_TIME: str = field(
         default="now",
         metadata="End time for old jobs query (sacct time format)",
@@ -161,7 +165,7 @@ class SETTINGS:
                 f"{data['SECONDARY_TEXT_UTIL_CMD']} {{log_path}}"
             )
 
-        for key in ("TAIL_LINES",):
+        for key in ("TAIL_LINES", "PEEK_LINES"):
             try:
                 data[key] = max(1, int(data[key]))
             except (TypeError, ValueError):
@@ -183,7 +187,11 @@ class SETTINGS:
                 data[key] = None
 
         # Optional str
-        for key in ("DEBUG_SQUEUE_JSON_PATH", "DEBUG_SACCT_JSON_PATH", "DEBUG_SINFO_JSON_PATH"):
+        for key in (
+            "DEBUG_SQUEUE_JSON_PATH",
+            "DEBUG_SACCT_JSON_PATH",
+            "DEBUG_SINFO_JSON_PATH",
+        ):
             v = data.get(key)
             if v is not None and not isinstance(v, str):
                 data[key] = None
