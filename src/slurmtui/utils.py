@@ -64,7 +64,7 @@ class SETTINGS:
         metadata="Number of lines to show when tailing logs",
     )
     PEEK_LINES: int = field(
-        default=50,
+        default=100,
         metadata="Number of lines to show in the log peek popup (Space / Ctrl+Space)",
     )
     OLD_JOBS_END_TIME: str = field(
@@ -187,7 +187,11 @@ class SETTINGS:
                 data[key] = None
 
         # Optional str
-        for key in ("DEBUG_SQUEUE_JSON_PATH", "DEBUG_SACCT_JSON_PATH", "DEBUG_SINFO_JSON_PATH"):
+        for key in (
+            "DEBUG_SQUEUE_JSON_PATH",
+            "DEBUG_SACCT_JSON_PATH",
+            "DEBUG_SINFO_JSON_PATH",
+        ):
             v = data.get(key)
             if v is not None and not isinstance(v, str):
                 data[key] = None
