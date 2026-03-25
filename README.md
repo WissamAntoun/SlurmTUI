@@ -2,35 +2,83 @@
 [![PyPI version](https://badge.fury.io/py/slurmtui.svg)](https://badge.fury.io/py/slurmtui)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/slurmtui)
 
-A simple Terminal UI for monitoring SLURM jobs.
+A terminal user interface for monitoring and managing Slurm jobs. Instead of running `squeue`, `sacct`, and `scancel` over and over, you get a live-updating table of your jobs with colors, sorting, filtering, and shortcuts to tail logs, SSH into nodes, or delete jobs — all without leaving the TUI.
 
-### Note: SlurmTUI requires slurm 21.08 or later for the Json output support.
-### Note: Viewing old logs requires slurm 24.05 or later.
+Built with [Textual](https://textual.textualize.io/) and [Rich](https://rich.readthedocs.io/).
+
+> **Note:** SlurmTUI requires Slurm 21.08 or later for JSON output support.
+>
+> **Note:** Viewing old jobs requires Slurm 24.05 or later.
 
 ## Installation
+
 ```bash
 pip install slurmtui
 ```
 
 ## Usage
-Just run `slurmtui`/`slurmui`/`sui` in your terminal.
 
-Settings can be configured in `~/.slurmtui_settings.json`, you can override the settings path by setting `SLURMTUI_SETTINGS`.
+Just run `slurmtui` / `slurmui` / `sui` in your terminal.
 
-Settings can also be overridden by passing arguments to the command line, for example:
+### Command-line options
+
+Filter by account at launch:
+```bash
+slurmtui --acc my_account1,my_account2
+```
+
+View all users' jobs:
+```bash
+slurmtui --check_all_jobs
+```
+
+Override the update interval:
 ```bash
 slurmtui --update-interval 5
 ```
 
-All extra arguments will be passed to `squeue` command, for example:
+Pass extra arguments to `squeue`:
 ```bash
-slurmtui --account my_account
+slurmtui -- --partition=gpu
 ```
 
+### Settings
 
-![jobui](./img/screenshot.png)
+All preferences are stored in `~/.config/slurmtui/settings.json` and persist across sessions. You can override the settings path by setting the `SLURMTUI_SETTINGS` environment variable.
 
-# List of planned features (not in the priority order):
+## Features
+
+### Live Job Table
+
+The main view auto-refreshes every few seconds, showing your jobs with colored states (green for running, red for failed, etc.). Filter jobs by account, partition, or any column.
+
+![Job Table](./img/screenshot.png)
+
+### Keybindings
+
+| Key | Action |
+|-----|--------|
+| `L` | Tail stdout log |
+| `E` | Tail stderr log |
+| `Ctrl+L` | Open stdout in secondary text viewer |
+| `Ctrl+E` | Open stderr in secondary text viewer |
+| `C` | SSH into the job's node |
+| `D` | Delete a job (with confirmation, works with array jobs) |
+| `I` | View detailed job info |
+| `O` | Toggle old jobs history (completed/failed via `sacct`) |
+| `R` | Open hardware resources view |
+
+The log viewer can be configured to use `tail -f`, `less`, or any command you want.
+
+### Old Jobs History
+
+View completed/failed job history via `sacct`. Press `O` to toggle. For more info see the linked [blog post](https://wiss.dev/posts/software/slurmtui/#old-jobs-history)
+
+### Hardware Resources View
+
+See node allocation and availability across the cluster. Press `R` to open. For more info see the linked [blog post](https://wiss.dev/posts/software/slurmtui/#hardware-resources-view).
+
+## Roadmap
 
 - [x] View old jobs
 - [x] Filtering jobs when launching
@@ -38,19 +86,27 @@ slurmtui --account my_account
 - [x] Options other than tail for logs
 - [x] Faster launch
 - [x] Remove Array columns if no job array exists
+- [x] Display used/available resources
 - [ ] Search
-- [ ] Display used/available resources
 
-# FAQ
+Have a feature request? [Suggest it here](https://github.com/WissamAntoun/SlurmTUI/issues/4)
+
+## FAQ
 
 ### How to select text in the App?
-JobUI is running a Textual app which puts your terminal in to application mode which disables clicking and dragging to select text. Most terminal emulators offer a modifier key which you can hold while you click and drag to restore the behavior you may expect from the command line. The exact modifier key depends on the terminal and platform you are running on.
 
-- iTerm Hold the OPTION key.
-- Gnome Terminal Hold the SHIFT key.
-- Windows Terminal Hold the SHIFT key.
+SlurmTUI runs a Textual app which puts your terminal into application mode, disabling clicking and dragging to select text. Most terminal emulators offer a modifier key which you can hold while you click and drag to restore normal selection:
 
-Refer to the documentation for your terminal emulator, if it is not listed above.
+- **iTerm** — Hold the OPTION key.
+- **Gnome Terminal** — Hold the SHIFT key.
+- **Windows Terminal** — Hold the SHIFT key.
 
-# Contact
+Refer to the documentation for your terminal emulator if it is not listed above.
+
+## License
+
+MIT
+
+## Contact
+
 - [Wissam Antoun](https://github.com/WissamAntoun/)
