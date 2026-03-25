@@ -187,6 +187,8 @@ class AreaChart(Widget):
         self.chart_height = chart_height
         self.max_val = max_val
         self._series: list[tuple[str, str, deque[float]]] = []
+        self._cached_render: Optional[Text] = None
+        self._dirty = True
         # legend(1) + chart rows + x-axis(1) + time labels(1)
         self.styles.height = chart_height + 3
 
@@ -194,18 +196,23 @@ class AreaChart(Widget):
         self, series: list[tuple[str, str, deque[float]]]
     ) -> None:
         self._series = series
+        self._dirty = True
         self.refresh()
 
     def render(self) -> Text:
         if not self._series:
             return Text("No data yet...")
+        if not self._dirty and self._cached_render is not None:
+            return self._cached_render
         chart_width = self.size.width - 6
-        return _render_area_chart(
+        self._cached_render = _render_area_chart(
             chart_width=max(chart_width, 10),
             chart_height=self.chart_height,
             series=[(l, c, list(d)) for l, c, d in self._series],
             max_val=self.max_val,
         )
+        self._dirty = False
+        return self._cached_render
 
 
 # ── Utilization screen ────────────────────────────────────────────
@@ -400,15 +407,6 @@ class UtilizationScreen(ModalScreen[None]):
 
     def _refresh_display(self, sample: UtilSample) -> None:
         """Update all chart widgets with the latest data."""
-        # Debug: show GPU count in first few samples
-        if self._sample_count <= 3:
-            gpu_ids = [g.index for g in sample.gpus]
-            self.notify(
-                f"Sample {self._sample_count}: {len(sample.gpus)} GPUs {gpu_ids}, "
-                f"initialized: {self._gpu_initialized}",
-                timeout=5,
-            )
-
         # CPU chart
         try:
             cpu_detail = self.query_one("#cpu_detail", Static)
