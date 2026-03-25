@@ -55,7 +55,7 @@ class UtilChart(PlotWidget):
     """
 
     def __init__(self, max_val: float = 100.0, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
+        super().__init__(allow_pan_and_zoom=False, **kwargs)
         self.max_val = max_val
         self._series_data: list[tuple[str, str, deque[float]]] = []
 
@@ -64,14 +64,6 @@ class UtilChart(PlotWidget):
         self.set_ylimits(0, self.max_val)
         self.set_xlimits(-HISTORY_LENGTH * SAMPLE_INTERVAL, 0)
         self.set_xlabel("Time (s)")
-
-    def on_mouse_scroll_up(self, event) -> None:
-        # Disable zoom — let scroll events bubble to VerticalScroll parent
-        pass
-
-    def on_mouse_scroll_down(self, event) -> None:
-        # Disable zoom — let scroll events bubble to VerticalScroll parent
-        pass
 
     def update_series(
         self, series: list[tuple[str, str, deque[float]]]

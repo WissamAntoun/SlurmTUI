@@ -200,9 +200,8 @@ def _build_monitor_script(
     parts.append("head -1 /proc/stat")
 
     # Memory - always available via /proc/meminfo
-    parts.append(
-        r"awk '/^MemTotal:/{print \"MEM_TOTAL:\" $2} /^MemAvailable:/{print \"MEM_AVAIL:\" $2}' /proc/meminfo"
-    )
+    parts.append("echo \"MEM_TOTAL:$(awk '/^MemTotal:/{print $2}' /proc/meminfo)\"")
+    parts.append("echo \"MEM_AVAIL:$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)\"")
 
     # Cgroup CPU/Mem (job-scoped)
     if caps.has_cgroup:
