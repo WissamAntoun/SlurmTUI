@@ -1,18 +1,18 @@
-"""Live utilization monitoring screen with nvtop-style area charts."""
+"""Live utilization monitoring screen using textual-plot for charts."""
 
 from __future__ import annotations
 
+import numpy as np
 from collections import deque
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, List, Optional
 
-from rich.text import Text
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
-from textual.widget import Widget
 from textual.widgets import Footer, Header, Static
+from textual_plot import HiResMode, PlotWidget
 
 from ..monitor import (
     MonitorCapabilities,
@@ -24,12 +24,7 @@ from ..monitor import (
 
 # How many data points to keep in history
 HISTORY_LENGTH = 120
-# Chart defaults
-DEFAULT_CHART_HEIGHT = 8
 SAMPLE_INTERVAL = 2  # seconds between samples
-
-# Block characters for filled area (index 0 = empty, 8 = full)
-_BLOCKS = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
 
 
 def _format_bytes(b: float) -> str:
@@ -46,180 +41,65 @@ def _format_mb(mb: float) -> str:
     return f"{mb:.0f}M"
 
 
-# ── Area chart rendering ──────────────────────────────────────────
+# ── Utilization chart wrapper ─────────────────────────────────────
 
 
-def _render_area_chart(
-    chart_width: int,
-    chart_height: int,
-    series: Sequence[Tuple[str, str, Sequence[float]]],
-    max_val: float = 100.0,
-    interval: int = SAMPLE_INTERVAL,
-) -> Text:
-    """Render an nvtop-style filled area chart.
-
-    Args:
-        chart_width: width of the chart area (excluding Y-axis).
-        chart_height: height in rows.
-        series: list of (label, rich_color, data_points).
-            Drawn back to front — last series renders on top.
-        max_val: the value that maps to 100% height.
-        interval: seconds between data points (for X-axis labels).
-    """
-    if chart_width < 10:
-        chart_width = 10
-    if chart_height < 4:
-        chart_height = 4
-
-    # Grid of (character, color) — row 0 is top
-    grid: list[list[tuple[str, str]]] = [
-        [(" ", "dim")] * chart_width for _ in range(chart_height)
-    ]
-
-    for _label, color, data in series:
-        values = list(data)
-        if len(values) < chart_width:
-            values = [0.0] * (chart_width - len(values)) + values
-        else:
-            values = values[-chart_width:]
-
-        for col in range(chart_width):
-            v = max(0.0, min(values[col], max_val))
-            fill = v / max_val * chart_height * 8 if max_val > 0 else 0
-
-            for row in range(chart_height):
-                row_bottom_sublevel = (chart_height - 1 - row) * 8
-                row_top_sublevel = row_bottom_sublevel + 8
-
-                if fill >= row_top_sublevel:
-                    grid[row][col] = ("█", color)
-                elif fill > row_bottom_sublevel:
-                    level = int(fill - row_bottom_sublevel)
-                    level = max(0, min(level, 8))
-                    grid[row][col] = (_BLOCKS[level], color)
-
-    # Build Rich Text
-    text = Text()
-
-    # Legend
-    for i, (label, color, _data) in enumerate(series):
-        if i > 0:
-            text.append("  ")
-        text.append("█ ", style=color)
-        text.append(label, style=color + " bold")
-    text.append("\n")
-
-    # Y-axis labels
-    y_positions = {}
-    if chart_height >= 4:
-        y_positions[0] = f"{max_val:.0f}" if max_val != 100 else "100"
-        y_positions[chart_height - 1] = "  0"
-    if chart_height >= 6:
-        mid = max_val / 2
-        y_positions[chart_height // 2] = f"{mid:>3.0f}"
-    if chart_height >= 8:
-        q1 = max_val * 3 / 4
-        q3 = max_val / 4
-        y_positions[chart_height // 4] = f"{q1:>3.0f}"
-        y_positions[3 * chart_height // 4] = f"{q3:>3.0f}"
-
-    # Y-axis width for padding
-    y_width = max((len(v) for v in y_positions.values()), default=3)
-
-    for row in range(chart_height):
-        if row in y_positions:
-            text.append(f"{y_positions[row]:>{y_width}}", style="dim")
-        else:
-            text.append(" " * y_width, style="dim")
-        text.append("│", style="dim")
-
-        for col in range(chart_width):
-            char, color = grid[row][col]
-            text.append(char, style=color)
-        text.append("\n")
-
-    # X-axis
-    text.append(" " * y_width, style="dim")
-    text.append("└", style="dim")
-    text.append("─" * chart_width, style="dim")
-    text.append("\n")
-
-    # Time labels
-    total_secs = chart_width * interval
-    time_line = list(" " * chart_width)
-    n_labels = 5
-    for i in range(n_labels):
-        frac = i / (n_labels - 1)
-        secs = int(total_secs * (1 - frac))
-        label = f"{secs}s"
-        pos = int(frac * (chart_width - len(label)))
-        pos = max(0, min(pos, chart_width - len(label)))
-        for j, c in enumerate(label):
-            if pos + j < chart_width:
-                time_line[pos + j] = c
-
-    text.append(" " * (y_width + 1), style="dim")
-    text.append("".join(time_line), style="dim")
-
-    return text
-
-
-# ── Area chart widget ─────────────────────────────────────────────
-
-
-class AreaChart(Widget):
-    """A widget that displays an nvtop-style filled area chart."""
+class UtilChart(PlotWidget):
+    """PlotWidget pre-configured for utilization time series."""
 
     DEFAULT_CSS = """
-    AreaChart {
+    UtilChart {
         width: 1fr;
-        padding: 0 1;
+        height: 14;
     }
     """
 
-    def __init__(
-        self,
-        chart_height: int = DEFAULT_CHART_HEIGHT,
-        max_val: float = 100.0,
-        **kwargs: Any,
-    ) -> None:
+    def __init__(self, max_val: float = 100.0, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.chart_height = chart_height
         self.max_val = max_val
-        self._series: list[tuple[str, str, deque[float]]] = []
-        self._cached_render: Optional[Text] = None
-        self._dirty = True
-        # legend(1) + chart rows + x-axis(1) + time labels(1)
-        self.styles.height = chart_height + 3
+        self._series_data: list[tuple[str, str, deque[float]]] = []
+
+    def on_mount(self) -> None:
+        # Configure fixed Y-axis
+        self.set_ylimits(0, self.max_val)
+        self.set_xlabel("Time (s)")
 
     def update_series(
         self, series: list[tuple[str, str, deque[float]]]
     ) -> None:
-        self._series = series
-        self._dirty = True
-        self.refresh()
+        """Update chart data. series: list of (label, color, data_deque)."""
+        self._series_data = series
+        self.clear()
 
-    def render(self) -> Text:
-        if not self._series:
-            return Text("No data yet...")
-        if not self._dirty and self._cached_render is not None:
-            return self._cached_render
-        chart_width = self.size.width - 6
-        self._cached_render = _render_area_chart(
-            chart_width=max(chart_width, 10),
-            chart_height=self.chart_height,
-            series=[(l, c, list(d)) for l, c, d in self._series],
-            max_val=self.max_val,
-        )
-        self._dirty = False
-        return self._cached_render
+        for label, color, data in series:
+            values = list(data)
+            n = len(values)
+            if n == 0:
+                continue
+            # X-axis: time in seconds ago (negative = past, 0 = now)
+            x = np.arange(-n * SAMPLE_INTERVAL, 0, SAMPLE_INTERVAL)
+            if len(x) > len(values):
+                x = x[-len(values):]
+            elif len(values) > len(x):
+                values = values[-len(x):]
+            y = np.array(values, dtype=float)
+            self.plot(
+                x=x,
+                y=y,
+                line_style=color,
+                hires_mode=HiResMode.BRAILLE,
+                label=label,
+            )
+
+        self.set_ylimits(0, self.max_val)
+        self.show_legend()
 
 
 # ── Utilization screen ────────────────────────────────────────────
 
 
 class UtilizationScreen(ModalScreen[None]):
-    """Live-updating utilization monitor with nvtop-style area charts."""
+    """Live-updating utilization monitor with textual-plot charts."""
 
     BINDINGS = [
         Binding("escape", "dismiss", "Close", key_display="Esc"),
@@ -252,14 +132,12 @@ class UtilizationScreen(ModalScreen[None]):
     }
 
     .charts-row {
-        height: auto;
-        min-height: 12;
+        height: 14;
     }
 
     .chart-col {
         width: 1fr;
-        height: auto;
-        min-height: 12;
+        height: 14;
     }
     """
 
@@ -301,10 +179,10 @@ class UtilizationScreen(ModalScreen[None]):
             with Horizontal(classes="charts-row"):
                 with Vertical(classes="chart-col"):
                     yield Static("", id="cpu_detail", classes="chart-detail")
-                    yield AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id="cpu_chart")
+                    yield UtilChart(max_val=100.0, id="cpu_chart")
                 with Vertical(classes="chart-col"):
                     yield Static("", id="mem_detail", classes="chart-detail")
-                    yield AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id="mem_chart")
+                    yield UtilChart(max_val=100.0, id="mem_chart")
 
             # GPU charts container — populated dynamically
             yield Vertical(id="gpu_container")
@@ -418,7 +296,7 @@ class UtilizationScreen(ModalScreen[None]):
             pass
 
         try:
-            cpu_chart = self.query_one("#cpu_chart", AreaChart)
+            cpu_chart = self.query_one("#cpu_chart", UtilChart)
             cpu_chart.update_series([
                 ("CPU %", "cyan", self._cpu_history),
             ])
@@ -437,7 +315,7 @@ class UtilizationScreen(ModalScreen[None]):
             pass
 
         try:
-            mem_chart = self.query_one("#mem_chart", AreaChart)
+            mem_chart = self.query_one("#mem_chart", UtilChart)
             mem_chart.update_series([
                 ("RAM %", "dark_orange", self._mem_history),
             ])
@@ -463,7 +341,7 @@ class UtilizationScreen(ModalScreen[None]):
         # Second pass: update all initialized GPUs
         for gpu in sample.gpus:
             if gpu.index not in self._gpu_initialized:
-                continue  # widgets still mounting, will update next sample
+                continue
             self._update_gpu_widgets(gpu)
 
     def _create_gpu_widgets(self, container: Vertical, gpus: list) -> None:
@@ -487,8 +365,8 @@ class UtilizationScreen(ModalScreen[None]):
                 detail_text += f"  ·  Power {gpu.power_draw_w:.0f}W/{power_limit:.0f}W"
 
             detail_widget = Static(detail_text, id=detail_id, classes="chart-detail")
-            util_chart = AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id=util_id)
-            mem_chart = AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id=mem_id)
+            util_chart = UtilChart(max_val=100.0, id=util_id)
+            mem_chart = UtilChart(max_val=100.0, id=mem_id)
 
             row = Horizontal(classes="charts-row")
             col_util = Vertical(classes="chart-col")
@@ -502,8 +380,7 @@ class UtilizationScreen(ModalScreen[None]):
             col_mem.mount(mem_chart)
 
             if has_power:
-                power_chart = AreaChart(
-                    chart_height=DEFAULT_CHART_HEIGHT,
+                power_chart = UtilChart(
                     max_val=power_limit,
                     id=power_id,
                 )
@@ -522,14 +399,14 @@ class UtilizationScreen(ModalScreen[None]):
         has_power = power_limit > 0
 
         try:
-            self.query_one(f"#{util_id}", AreaChart).update_series([
+            self.query_one(f"#{util_id}", UtilChart).update_series([
                 (f"GPU{gpu.index} util", "cyan", self._gpu_util_history[gpu.index]),
             ])
         except Exception:
             pass
 
         try:
-            self.query_one(f"#{mem_id}", AreaChart).update_series([
+            self.query_one(f"#{mem_id}", UtilChart).update_series([
                 (f"GPU{gpu.index} VRAM", "dark_orange", self._gpu_mem_history[gpu.index]),
             ])
         except Exception:
@@ -537,7 +414,7 @@ class UtilizationScreen(ModalScreen[None]):
 
         if has_power:
             try:
-                self.query_one(f"#{power_id}", AreaChart).update_series([
+                self.query_one(f"#{power_id}", UtilChart).update_series([
                     (f"GPU{gpu.index} power", "bright_magenta", self._gpu_power_history[gpu.index]),
                 ])
             except Exception:

@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from slurmtui._version import __author__, __author_email__, __version__
 
-requirements = ["rich==14.3.3", "textual==8.1.1"]
+requirements = ["rich==14.3.3", "textual==8.1.1", "textual-plot>=0.3.0"]
 
 
 def get_long_description():
