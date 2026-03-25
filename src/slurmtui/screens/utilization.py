@@ -60,9 +60,18 @@ class UtilChart(PlotWidget):
         self._series_data: list[tuple[str, str, deque[float]]] = []
 
     def on_mount(self) -> None:
-        # Configure fixed Y-axis
+        # Configure fixed axes
         self.set_ylimits(0, self.max_val)
+        self.set_xlimits(-HISTORY_LENGTH * SAMPLE_INTERVAL, 0)
         self.set_xlabel("Time (s)")
+
+    def on_mouse_scroll_up(self, event) -> None:
+        # Disable zoom — let scroll events bubble to VerticalScroll parent
+        pass
+
+    def on_mouse_scroll_down(self, event) -> None:
+        # Disable zoom — let scroll events bubble to VerticalScroll parent
+        pass
 
     def update_series(
         self, series: list[tuple[str, str, deque[float]]]
@@ -92,6 +101,7 @@ class UtilChart(PlotWidget):
             )
 
         self.set_ylimits(0, self.max_val)
+        self.set_xlimits(-HISTORY_LENGTH * SAMPLE_INTERVAL, 0)
         self.show_legend()
 
 
@@ -317,7 +327,7 @@ class UtilizationScreen(ModalScreen[None]):
         try:
             mem_chart = self.query_one("#mem_chart", UtilChart)
             mem_chart.update_series([
-                ("RAM %", "dark_orange", self._mem_history),
+                ("RAM %", "yellow", self._mem_history),
             ])
         except Exception:
             pass
@@ -407,7 +417,7 @@ class UtilizationScreen(ModalScreen[None]):
 
         try:
             self.query_one(f"#{mem_id}", UtilChart).update_series([
-                (f"GPU{gpu.index} VRAM", "dark_orange", self._gpu_mem_history[gpu.index]),
+                (f"GPU{gpu.index} VRAM", "yellow", self._gpu_mem_history[gpu.index]),
             ])
         except Exception:
             pass
@@ -415,7 +425,7 @@ class UtilizationScreen(ModalScreen[None]):
         if has_power:
             try:
                 self.query_one(f"#{power_id}", UtilChart).update_series([
-                    (f"GPU{gpu.index} power", "bright_magenta", self._gpu_power_history[gpu.index]),
+                    (f"GPU{gpu.index} power", "magenta", self._gpu_power_history[gpu.index]),
                 ])
             except Exception:
                 pass
