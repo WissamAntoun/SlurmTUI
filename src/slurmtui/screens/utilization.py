@@ -65,9 +65,6 @@ def _render_area_chart(
             Drawn back to front — last series renders on top.
         max_val: the value that maps to 100% height.
         interval: seconds between data points (for X-axis labels).
-
-    Returns:
-        Rich Text renderable.
     """
     if chart_width < 10:
         chart_width = 10
@@ -79,10 +76,8 @@ def _render_area_chart(
         [(" ", "dim")] * chart_width for _ in range(chart_height)
     ]
 
-    # Draw each series (first series is background, last is foreground)
     for _label, color, data in series:
         values = list(data)
-        # Right-align: most recent data on the right
         if len(values) < chart_width:
             values = [0.0] * (chart_width - len(values)) + values
         else:
@@ -90,11 +85,9 @@ def _render_area_chart(
 
         for col in range(chart_width):
             v = max(0.0, min(values[col], max_val))
-            # How many sub-rows to fill (each row = 8 sub-levels)
             fill = v / max_val * chart_height * 8 if max_val > 0 else 0
 
             for row in range(chart_height):
-                # row 0 = top row, row (chart_height-1) = bottom row
                 row_bottom_sublevel = (chart_height - 1 - row) * 8
                 row_top_sublevel = row_bottom_sublevel + 8
 
@@ -104,12 +97,11 @@ def _render_area_chart(
                     level = int(fill - row_bottom_sublevel)
                     level = max(0, min(level, 8))
                     grid[row][col] = (_BLOCKS[level], color)
-                # else: leave whatever was drawn by a previous series
 
-    # Build Rich Text output
+    # Build Rich Text
     text = Text()
 
-    # ── Legend ──
+    # Legend
     for i, (label, color, _data) in enumerate(series):
         if i > 0:
             text.append("  ")
@@ -117,22 +109,28 @@ def _render_area_chart(
         text.append(label, style=color + " bold")
     text.append("\n")
 
-    # ── Y-axis + chart rows ──
+    # Y-axis labels
     y_positions = {}
     if chart_height >= 4:
-        y_positions[0] = "100"
+        y_positions[0] = f"{max_val:.0f}" if max_val != 100 else "100"
         y_positions[chart_height - 1] = "  0"
     if chart_height >= 6:
-        y_positions[chart_height // 2] = " 50"
+        mid = max_val / 2
+        y_positions[chart_height // 2] = f"{mid:>3.0f}"
     if chart_height >= 8:
-        y_positions[chart_height // 4] = " 75"
-        y_positions[3 * chart_height // 4] = " 25"
+        q1 = max_val * 3 / 4
+        q3 = max_val / 4
+        y_positions[chart_height // 4] = f"{q1:>3.0f}"
+        y_positions[3 * chart_height // 4] = f"{q3:>3.0f}"
+
+    # Y-axis width for padding
+    y_width = max((len(v) for v in y_positions.values()), default=3)
 
     for row in range(chart_height):
         if row in y_positions:
-            text.append(f"{y_positions[row]:>3}", style="dim")
+            text.append(f"{y_positions[row]:>{y_width}}", style="dim")
         else:
-            text.append("   ", style="dim")
+            text.append(" " * y_width, style="dim")
         text.append("│", style="dim")
 
         for col in range(chart_width):
@@ -140,16 +138,15 @@ def _render_area_chart(
             text.append(char, style=color)
         text.append("\n")
 
-    # ── X-axis line ──
-    text.append("   └", style="dim")
+    # X-axis
+    text.append(" " * y_width, style="dim")
+    text.append("└", style="dim")
     text.append("─" * chart_width, style="dim")
     text.append("\n")
 
-    # ── Time labels ──
+    # Time labels
     total_secs = chart_width * interval
     time_line = list(" " * chart_width)
-
-    # Place ~5 labels evenly across the axis
     n_labels = 5
     for i in range(n_labels):
         frac = i / (n_labels - 1)
@@ -161,7 +158,7 @@ def _render_area_chart(
             if pos + j < chart_width:
                 time_line[pos + j] = c
 
-    text.append("    ", style="dim")
+    text.append(" " * (y_width + 1), style="dim")
     text.append("".join(time_line), style="dim")
 
     return text
@@ -185,11 +182,12 @@ class AreaChart(Widget):
     def __init__(
         self,
         chart_height: int = DEFAULT_CHART_HEIGHT,
+        max_val: float = 100.0,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.chart_height = chart_height
-        # List of (label, color, deque) — set via update_series()
+        self.max_val = max_val
         self._series: list[tuple[str, str, deque[float]]] = []
 
     def update_series(
@@ -201,11 +199,12 @@ class AreaChart(Widget):
     def render(self) -> Text:
         if not self._series:
             return Text("No data yet...")
-        chart_width = self.size.width - 6  # 3 for Y-axis + "│" + padding
+        chart_width = self.size.width - 6
         return _render_area_chart(
             chart_width=max(chart_width, 10),
             chart_height=self.chart_height,
             series=[(l, c, list(d)) for l, c, d in self._series],
+            max_val=self.max_val,
         )
 
 
@@ -235,23 +234,18 @@ class UtilizationScreen(ModalScreen[None]):
         color: $text-muted;
     }
 
-    .chart-label {
-        text-style: bold;
-        margin: 1 0 0 0;
-        height: 1;
-    }
-
     .chart-detail {
         height: 1;
         margin: 0 0 0 2;
         color: $text-muted;
     }
 
-    AreaChart {
-        margin: 0 0 0 0;
+    .charts-row {
+        height: auto;
     }
 
-    .gpu-charts-row {
+    .chart-col {
+        width: 1fr;
         height: auto;
     }
     """
@@ -279,6 +273,8 @@ class UtilizationScreen(ModalScreen[None]):
         self._mem_history: deque[float] = deque(maxlen=HISTORY_LENGTH)
         self._gpu_util_history: dict[int, deque[float]] = {}
         self._gpu_mem_history: dict[int, deque[float]] = {}
+        self._gpu_power_history: dict[int, deque[float]] = {}
+        self._gpu_power_limits: dict[int, float] = {}
         self._sample_count = 0
         self._last_sample: Optional[UtilSample] = None
 
@@ -287,10 +283,14 @@ class UtilizationScreen(ModalScreen[None]):
         with VerticalScroll(id="util_container"):
             yield Static("Connecting...", id="status_label", classes="util-status")
 
-            # CPU + Memory chart
-            yield Static("[bold]CPU / Memory[/bold]", classes="chart-label")
-            yield Static("", id="cpu_mem_detail", classes="chart-detail")
-            yield AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id="cpu_mem_chart")
+            # CPU and RAM side by side
+            with Horizontal(classes="charts-row"):
+                with Vertical(classes="chart-col"):
+                    yield Static("", id="cpu_detail", classes="chart-detail")
+                    yield AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id="cpu_chart")
+                with Vertical(classes="chart-col"):
+                    yield Static("", id="mem_detail", classes="chart-detail")
+                    yield AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id="mem_chart")
 
             # GPU charts container — populated dynamically
             yield Vertical(id="gpu_container")
@@ -376,8 +376,12 @@ class UtilizationScreen(ModalScreen[None]):
             if gpu.index not in self._gpu_util_history:
                 self._gpu_util_history[gpu.index] = deque(maxlen=HISTORY_LENGTH)
                 self._gpu_mem_history[gpu.index] = deque(maxlen=HISTORY_LENGTH)
+                self._gpu_power_history[gpu.index] = deque(maxlen=HISTORY_LENGTH)
             self._gpu_util_history[gpu.index].append(gpu.utilization_pct)
             self._gpu_mem_history[gpu.index].append(gpu.mem_pct)
+            self._gpu_power_history[gpu.index].append(gpu.power_draw_w)
+            if gpu.power_limit_w > 0:
+                self._gpu_power_limits[gpu.index] = gpu.power_limit_w
 
         self.app.call_from_thread(self._refresh_display, sample)
 
@@ -389,26 +393,38 @@ class UtilizationScreen(ModalScreen[None]):
 
     def _refresh_display(self, sample: UtilSample) -> None:
         """Update all chart widgets with the latest data."""
-        # CPU/Memory detail line
+        # CPU chart
         try:
-            detail = self.query_one("#cpu_mem_detail", Static)
-            parts = [f"CPU: {sample.cpu.usage_pct:.1f}%"]
+            cpu_detail = self.query_one("#cpu_detail", Static)
+            cpu_label = f"CPU: {sample.cpu.usage_pct:.1f}%"
             if self.num_cpus:
-                parts[0] += f" ({self.num_cpus} cores)"
-            parts.append(
+                cpu_label += f" ({self.num_cpus} cores)"
+            cpu_detail.update(cpu_label)
+        except Exception:
+            pass
+
+        try:
+            cpu_chart = self.query_one("#cpu_chart", AreaChart)
+            cpu_chart.update_series([
+                ("CPU %", "cyan", self._cpu_history),
+            ])
+        except Exception:
+            pass
+
+        # RAM chart
+        try:
+            mem_detail = self.query_one("#mem_detail", Static)
+            mem_detail.update(
                 f"RAM: {sample.mem.pct:.1f}%"
                 f" ({_format_bytes(sample.mem.used_bytes)}"
                 f" / {_format_bytes(sample.mem.total_bytes)})"
             )
-            detail.update("  ·  ".join(parts))
         except Exception:
             pass
 
-        # CPU/Memory chart
         try:
-            chart = self.query_one("#cpu_mem_chart", AreaChart)
-            chart.update_series([
-                ("CPU %", "cyan", self._cpu_history),
+            mem_chart = self.query_one("#mem_chart", AreaChart)
+            mem_chart.update_series([
                 ("RAM %", "dark_orange", self._mem_history),
             ])
         except Exception:
@@ -425,76 +441,85 @@ class UtilizationScreen(ModalScreen[None]):
         except Exception:
             return
 
-        # Check how many GPUs we have to decide layout
-        n_gpus = len(sample.gpus)
-        use_pairs = n_gpus >= 2
-
-        for i, gpu in enumerate(sample.gpus):
-            chart_id = f"gpu_{gpu.index}_chart"
+        for gpu in sample.gpus:
+            util_id = f"gpu_{gpu.index}_util_chart"
+            mem_id = f"gpu_{gpu.index}_mem_chart"
+            power_id = f"gpu_{gpu.index}_power_chart"
             detail_id = f"gpu_{gpu.index}_detail"
-            row_id = f"gpu_row_{i // 2}"
+
+            power_limit = self._gpu_power_limits.get(gpu.index, 0)
+            has_power = power_limit > 0
 
             try:
-                # Update existing chart
-                chart = self.query_one(f"#{chart_id}", AreaChart)
-                chart.update_series([
-                    (f"GPU{gpu.index} %", "cyan", self._gpu_util_history[gpu.index]),
-                    (f"GPU{gpu.index} mem%", "dark_orange", self._gpu_mem_history[gpu.index]),
+                # Update existing charts
+                self.query_one(f"#{util_id}", AreaChart).update_series([
+                    (f"GPU{gpu.index} util", "cyan", self._gpu_util_history[gpu.index]),
                 ])
-                detail = self.query_one(f"#{detail_id}", Static)
-                detail.update(
-                    f"Util: {gpu.utilization_pct:.1f}%  ·  "
-                    f"VRAM: {gpu.mem_pct:.1f}%"
-                    f" ({_format_mb(gpu.mem_used_mb)} / {_format_mb(gpu.mem_total_mb)})"
-                )
-            except Exception:
-                # Create chart for this GPU
-                label_widget = Static(
-                    f"[bold]GPU {gpu.index}[/bold]",
-                    classes="chart-label",
-                )
-                detail_widget = Static(
-                    f"Util: {gpu.utilization_pct:.1f}%  ·  "
-                    f"VRAM: {gpu.mem_pct:.1f}%"
-                    f" ({_format_mb(gpu.mem_used_mb)} / {_format_mb(gpu.mem_total_mb)})",
-                    id=detail_id,
-                    classes="chart-detail",
-                )
-                new_chart = AreaChart(
-                    chart_height=DEFAULT_CHART_HEIGHT,
-                    id=chart_id,
-                )
-
-                if use_pairs and i % 2 == 0:
-                    # Start a new Horizontal row for pairs
-                    row = Horizontal(id=row_id, classes="gpu-charts-row")
-                    container.mount(row)
-                    inner = Vertical()
-                    row.mount(inner)
-                    inner.mount(label_widget)
-                    inner.mount(detail_widget)
-                    inner.mount(new_chart)
-                elif use_pairs and i % 2 == 1:
-                    # Add to existing row
+                self.query_one(f"#{mem_id}", AreaChart).update_series([
+                    (f"GPU{gpu.index} VRAM", "dark_orange", self._gpu_mem_history[gpu.index]),
+                ])
+                if has_power:
                     try:
-                        row = self.query_one(f"#{row_id}", Horizontal)
-                        inner = Vertical()
-                        row.mount(inner)
-                        inner.mount(label_widget)
-                        inner.mount(detail_widget)
-                        inner.mount(new_chart)
+                        self.query_one(f"#{power_id}", AreaChart).update_series([
+                            (f"GPU{gpu.index} power", "bright_magenta", self._gpu_power_history[gpu.index]),
+                        ])
                     except Exception:
-                        container.mount(label_widget)
-                        container.mount(detail_widget)
-                        container.mount(new_chart)
-                else:
-                    # Single GPU per row
-                    container.mount(label_widget)
-                    container.mount(detail_widget)
-                    container.mount(new_chart)
+                        pass
 
-                # Trigger initial render
-                new_chart.update_series([
-                    (f"GPU{gpu.index} %", "cyan", self._gpu_util_history.get(gpu.index, deque())),
-                    (f"GPU{gpu.index} mem%", "dark_orange", self._gpu_mem_history.get(gpu.index, deque())),
+                detail = self.query_one(f"#{detail_id}", Static)
+                detail_text = (
+                    f"GPU {gpu.index}:  "
+                    f"Util {gpu.utilization_pct:.0f}%  ·  "
+                    f"VRAM {gpu.mem_pct:.0f}%"
+                    f" ({_format_mb(gpu.mem_used_mb)}/{_format_mb(gpu.mem_total_mb)})"
+                )
+                if has_power:
+                    detail_text += f"  ·  Power {gpu.power_draw_w:.0f}W/{power_limit:.0f}W"
+                detail.update(detail_text)
+
+            except Exception:
+                # Create new GPU charts
+                detail_text = (
+                    f"GPU {gpu.index}:  "
+                    f"Util {gpu.utilization_pct:.0f}%  ·  "
+                    f"VRAM {gpu.mem_pct:.0f}%"
+                    f" ({_format_mb(gpu.mem_used_mb)}/{_format_mb(gpu.mem_total_mb)})"
+                )
+                if has_power:
+                    detail_text += f"  ·  Power {gpu.power_draw_w:.0f}W/{power_limit:.0f}W"
+
+                detail_widget = Static(detail_text, id=detail_id, classes="chart-detail")
+
+                util_chart = AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id=util_id)
+                mem_chart = AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id=mem_id)
+
+                # Row 1: util + vram side by side
+                row1 = Horizontal(classes="charts-row")
+                col_util = Vertical(classes="chart-col")
+                col_mem = Vertical(classes="chart-col")
+
+                container.mount(detail_widget)
+                container.mount(row1)
+                row1.mount(col_util)
+                row1.mount(col_mem)
+                col_util.mount(util_chart)
+                col_mem.mount(mem_chart)
+
+                util_chart.update_series([
+                    (f"GPU{gpu.index} util", "cyan", self._gpu_util_history.get(gpu.index, deque())),
                 ])
+                mem_chart.update_series([
+                    (f"GPU{gpu.index} VRAM", "dark_orange", self._gpu_mem_history.get(gpu.index, deque())),
+                ])
+
+                # Row 2: power (full width, if available)
+                if has_power:
+                    power_chart = AreaChart(
+                        chart_height=DEFAULT_CHART_HEIGHT,
+                        max_val=power_limit,
+                        id=power_id,
+                    )
+                    container.mount(power_chart)
+                    power_chart.update_series([
+                        (f"GPU{gpu.index} power (W)", "bright_magenta", self._gpu_power_history.get(gpu.index, deque())),
+                    ])

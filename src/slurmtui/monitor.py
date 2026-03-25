@@ -89,10 +89,16 @@ class GpuSample:
     utilization_pct: float = 0.0
     mem_used_mb: float = 0.0
     mem_total_mb: float = 0.0
+    power_draw_w: float = 0.0
+    power_limit_w: float = 0.0
 
     @property
     def mem_pct(self) -> float:
         return (self.mem_used_mb / self.mem_total_mb * 100) if self.mem_total_mb else 0.0
+
+    @property
+    def power_pct(self) -> float:
+        return (self.power_draw_w / self.power_limit_w * 100) if self.power_limit_w else 0.0
 
 
 @dataclass
@@ -213,7 +219,7 @@ def _build_monitor_script(
         if gpu_indices:
             idx_flag = f"-i {','.join(str(i) for i in gpu_indices)}"
         parts.append(
-            f"nvidia-smi {idx_flag} --query-gpu=index,utilization.gpu,memory.used,memory.total"
+            f"nvidia-smi {idx_flag} --query-gpu=index,utilization.gpu,memory.used,memory.total,power.draw,power.limit"
             " --format=csv,noheader,nounits 2>/dev/null"
             " | while IFS= read -r line; do echo \"GPU:$line\"; done"
         )
@@ -422,17 +428,25 @@ class NodeMonitor:
         return CpuSample(usage_pct=min(d_usec / max_usec * 100, 100.0))
 
     def _parse_gpu_line(self, line: str) -> Optional[GpuSample]:
-        """Parse: index, util%, mem_used_mb, mem_total_mb"""
+        """Parse: index, util%, mem_used_mb, mem_total_mb, power_draw_w, power_limit_w"""
         parts = [p.strip() for p in line.split(",")]
         if len(parts) < 4:
             return None
         try:
-            return GpuSample(
+            sample = GpuSample(
                 index=int(parts[0]),
                 utilization_pct=float(parts[1]),
                 mem_used_mb=float(parts[2]),
                 mem_total_mb=float(parts[3]),
             )
+            # Power fields may not be available on all GPUs
+            if len(parts) >= 6:
+                try:
+                    sample.power_draw_w = float(parts[4])
+                    sample.power_limit_w = float(parts[5])
+                except ValueError:
+                    pass  # "[Not Supported]" on some GPUs
+            return sample
         except (ValueError, IndexError):
             return None
 
