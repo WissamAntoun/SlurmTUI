@@ -10,6 +10,7 @@ from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.events import MouseScrollDown, MouseScrollUp
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Header, Static
 from textual_plot import HiResMode, PlotWidget
@@ -58,6 +59,14 @@ class UtilChart(PlotWidget):
         super().__init__(allow_pan_and_zoom=False, **kwargs)
         self.max_val = max_val
         self._series_data: list[tuple[str, str, deque[float]]] = []
+
+    def zoom_in(self, event: MouseScrollDown) -> None:
+        # Don't stop event — let it bubble to VerticalScroll for scrolling
+        pass
+
+    def zoom_out(self, event: MouseScrollUp) -> None:
+        # Don't stop event — let it bubble to VerticalScroll for scrolling
+        pass
 
     def on_mount(self) -> None:
         # Configure fixed axes
@@ -114,7 +123,7 @@ class UtilizationScreen(ModalScreen[None]):
     }
 
     #util_container {
-        padding: 1 2;
+        padding: 1 4 1 2;
     }
 
     .util-status {
