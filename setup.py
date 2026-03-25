@@ -4,10 +4,10 @@ import sys
 from setuptools import find_packages, setup
 
 # Add src directory to path to import version
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from slurmtui._version import __author__, __author_email__, __version__
 
-requirements = ["rich==13.4.2", "textual==1.0.0"]
+requirements = ["rich==14.3.3", "textual==8.1.1"]
 
 
 def get_long_description():
