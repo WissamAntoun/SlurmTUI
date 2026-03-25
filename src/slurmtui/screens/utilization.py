@@ -173,8 +173,6 @@ class AreaChart(Widget):
     DEFAULT_CSS = """
     AreaChart {
         width: 1fr;
-        height: auto;
-        min-height: 12;
         padding: 0 1;
     }
     """
@@ -189,6 +187,8 @@ class AreaChart(Widget):
         self.chart_height = chart_height
         self.max_val = max_val
         self._series: list[tuple[str, str, deque[float]]] = []
+        # legend(1) + chart rows + x-axis(1) + time labels(1)
+        self.styles.height = chart_height + 3
 
     def update_series(
         self, series: list[tuple[str, str, deque[float]]]
