@@ -82,10 +82,20 @@ class SortableDataTable(DataTable):
         return str(label)
 
     def clear(self, columns: bool = False) -> Self:
+        if columns and self._sort.key is not None:
+            # Save the sort label and direction so we can restore after repopulating.
+            self._pending_sort = Sort(label=self.sort_column_label or '', direction=self._sort.direction)
         super().clear(columns)
         # _sort contains a column key that becomes invalid when clearing the columns, so reset it.
         self._sort = Sort()
         return self
+
+    def restore_sort(self) -> None:
+        """Reapply the sort that was active before the last clear(columns=True)."""
+        pending = getattr(self, '_pending_sort', None)
+        if pending is not None and pending.label:
+            self.sort_on_column(pending.label, direction=pending.direction)
+            self._pending_sort = None
 
     def column_names(self) -> List[Column]:
         data = self.columns.copy()
@@ -101,7 +111,6 @@ class SortableDataTable(DataTable):
             return
 
         self.clear(columns=True)
-        self._sort = Sort()
 
         if data is None or len(data) == 0:
             self.border_title = 'Results (0 rows)'

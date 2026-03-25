@@ -221,6 +221,8 @@ class SlurmTUI(App[SlurmTUIReturn]):
             self.title += f", {to_be_deleted_jobs} to be deleted"
         self.title += ")"
 
+        job_table.restore_sort()
+
         job_table.cursor_coordinate = (
             old_cursor
             if old_cursor.row < len(self.running_jobs_dict)

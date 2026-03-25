@@ -331,6 +331,8 @@ class PartitionDetailScreen(ModalScreen):
 
             table.add_row(*row, key=node_name)
 
+        table.restore_sort()
+
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield SortableDataTable(zebra_stripes=True, id="partition_detail_table")
