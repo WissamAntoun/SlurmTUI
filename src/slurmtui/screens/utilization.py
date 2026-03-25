@@ -173,13 +173,13 @@ class UtilizationScreen(ModalScreen[None]):
     @work(thread=True)
     def _start_monitoring(self) -> None:
         """Detect capabilities and start the monitor (runs in worker thread)."""
-        self.call_from_thread(self._update_status, "Probing node capabilities...")
+        self.app.call_from_thread(self._update_status, "Probing node capabilities...")
 
         caps = detect_capabilities(self.node, self.job_id)
         self._caps = caps
 
         if not caps.has_ssh:
-            self.call_from_thread(
+            self.app.call_from_thread(
                 self._update_status,
                 f"[red]Cannot connect: {caps.error}[/red]\n\n"
                 "SSH access to compute nodes is required for live monitoring.",
@@ -200,7 +200,7 @@ class UtilizationScreen(ModalScreen[None]):
             status_parts.append("[dim]no GPU monitoring (nvidia-smi not found)[/dim]")
 
         status = "Sources: " + " · ".join(status_parts) + "  |  Refresh: 2s"
-        self.call_from_thread(self._update_status, status)
+        self.app.call_from_thread(self._update_status, status)
 
         self._monitor = NodeMonitor(
             node=self.node,
@@ -226,7 +226,7 @@ class UtilizationScreen(ModalScreen[None]):
             self._gpu_mem_history[gpu.index].append(gpu.mem_pct)
 
         # Update UI from main thread
-        self.call_from_thread(self._refresh_display, sample)
+        self.app.call_from_thread(self._refresh_display, sample)
 
     def _update_status(self, text: str) -> None:
         try:
