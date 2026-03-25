@@ -105,6 +105,10 @@ PartitionDetailScreen {
     background: $background 100%;
 }
 
+UtilizationScreen {
+    background: $background 100%;
+}
+
 /* #button_THEME {
     height: 3;
     width: 30;

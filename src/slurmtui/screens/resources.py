@@ -211,6 +211,7 @@ class PartitionDetailScreen(ModalScreen):
     BINDINGS = [
         Binding("ctrl+r", "force_refresh", "Force Refresh", key_display="Ctrl+R"),
         Binding("i", "info", "Job Info", key_display="I"),
+        Binding("u", "utilization", "Utilization", key_display="U"),
         Binding("escape", "screen.dismiss", "Go Back", key_display="Esc"),
         Binding("q", "quit", "Quit", key_display="Q"),
     ]
@@ -392,6 +393,28 @@ class PartitionDetailScreen(ModalScreen):
         from .info import InfoScreen
 
         self.app.push_screen(InfoScreen(job_info))
+
+    def action_utilization(self) -> None:
+        """Show live utilization for the selected node."""
+        try:
+            table = self.query_one(SortableDataTable)
+        except NoMatches:
+            return
+
+        if not self._node_names:
+            return
+
+        row_idx = table.cursor_coordinate.row
+        if row_idx >= len(self._node_names):
+            return
+
+        node_name = self._node_names[row_idx]
+
+        from .utilization import UtilizationScreen
+
+        self.app.push_screen(
+            UtilizationScreen(node=node_name)
+        )
 
     def _get_all_jobs_settings(self) -> SETTINGS:
         """Return a copy of settings with CHECK_ALL_JOBS enabled."""

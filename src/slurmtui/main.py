@@ -22,9 +22,11 @@ from .screens import (
     ResourcesScreen,
     SettingsScreen,
     SortableDataTable,
+    UtilizationScreen,
     get_confirm_screen,
 )
 from .screens.utils import ColumnManager
+from .monitor import extract_gpu_indices
 from .slurm_utils import (
     CommandNotFoundError,
     SlurmTUIReturn,
@@ -80,6 +82,7 @@ class SlurmTUI(App[SlurmTUIReturn]):
         Binding("d", "delete", "Delete", key_display="D"),
         Binding("o", "old_jobs", "Old Jobs", key_display="O"),
         Binding("r", "resources", "Resources", key_display="R"),
+        Binding("u", "utilization", "Utilization", key_display="U"),
         Binding("s", "settings", "Settings", key_display="S"),
         Binding("q", "quit", "Quit", key_display="Q"),
         # fmt: on
@@ -575,6 +578,60 @@ class SlurmTUI(App[SlurmTUIReturn]):
         if self._update_timer is not None:
             self._update_timer.stop()
         await self.push_screen_wait(ResourcesScreen(settings=settings))
+        self._update_timer = self.set_timer(
+            self._effective_update_interval(), self._update_job_table
+        )
+
+    @work
+    async def action_utilization(self) -> None:
+        """Show live utilization for the selected job."""
+        if self._check_no_jobs():
+            return
+
+        try:
+            job_table = self.query_one(SortableDataTable)
+            self.job_table = job_table
+        except NoMatches:
+            job_table = self.job_table
+
+        selected_job = list(self.running_jobs_dict.values())[
+            job_table.cursor_coordinate.row
+        ]
+
+        if check_for_state(selected_job["job_state"], "PENDING"):
+            self.notify(
+                f"Job {selected_job['job_id']} is pending, no node assigned yet!",
+                severity="warning",
+            )
+            return
+
+        node = str(selected_job.get("batch_host", selected_job.get("nodes", "")))
+        if not node:
+            self.notify("No node information available for this job", severity="warning")
+            return
+
+        gpu_indices = extract_gpu_indices(selected_job)
+        num_cpus = None
+        try:
+            cpus = selected_job.get("cpus", {})
+            if isinstance(cpus, dict):
+                num_cpus = cpus.get("number")
+            elif isinstance(cpus, int):
+                num_cpus = cpus
+        except Exception:
+            pass
+
+        if self._update_timer is not None:
+            self._update_timer.stop()
+        await self.push_screen_wait(
+            UtilizationScreen(
+                node=node,
+                job_id=selected_job["job_id"],
+                job_name=str(selected_job.get("name", "")),
+                gpu_indices=gpu_indices,
+                num_cpus=num_cpus,
+            )
+        )
         self._update_timer = self.set_timer(
             self._effective_update_interval(), self._update_job_table
         )
