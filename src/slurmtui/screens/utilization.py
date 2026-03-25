@@ -240,13 +240,19 @@ class UtilizationScreen(ModalScreen[None]):
         color: $text-muted;
     }
 
+    #gpu_container {
+        height: auto;
+    }
+
     .charts-row {
         height: auto;
+        min-height: 12;
     }
 
     .chart-col {
         width: 1fr;
         height: auto;
+        min-height: 12;
     }
     """
 
@@ -275,6 +281,7 @@ class UtilizationScreen(ModalScreen[None]):
         self._gpu_mem_history: dict[int, deque[float]] = {}
         self._gpu_power_history: dict[int, deque[float]] = {}
         self._gpu_power_limits: dict[int, float] = {}
+        self._gpu_initialized: set[int] = set()
         self._sample_count = 0
         self._last_sample: Optional[UtilSample] = None
 
@@ -393,6 +400,15 @@ class UtilizationScreen(ModalScreen[None]):
 
     def _refresh_display(self, sample: UtilSample) -> None:
         """Update all chart widgets with the latest data."""
+        # Debug: show GPU count in first few samples
+        if self._sample_count <= 3:
+            gpu_ids = [g.index for g in sample.gpus]
+            self.notify(
+                f"Sample {self._sample_count}: {len(sample.gpus)} GPUs {gpu_ids}, "
+                f"initialized: {self._gpu_initialized}",
+                timeout=5,
+            )
+
         # CPU chart
         try:
             cpu_detail = self.query_one("#cpu_detail", Static)
@@ -441,7 +457,20 @@ class UtilizationScreen(ModalScreen[None]):
         except Exception:
             return
 
+        # First pass: create widgets for any new GPUs
+        new_gpus = [g for g in sample.gpus if g.index not in self._gpu_initialized]
+        if new_gpus:
+            self._create_gpu_widgets(container, new_gpus)
+
+        # Second pass: update all initialized GPUs
         for gpu in sample.gpus:
+            if gpu.index not in self._gpu_initialized:
+                continue  # widgets still mounting, will update next sample
+            self._update_gpu_widgets(gpu)
+
+    def _create_gpu_widgets(self, container: Vertical, gpus: list) -> None:
+        """Mount chart widgets for newly discovered GPUs."""
+        for gpu in gpus:
             util_id = f"gpu_{gpu.index}_util_chart"
             mem_id = f"gpu_{gpu.index}_mem_chart"
             power_id = f"gpu_{gpu.index}_power_chart"
@@ -450,76 +479,82 @@ class UtilizationScreen(ModalScreen[None]):
             power_limit = self._gpu_power_limits.get(gpu.index, 0)
             has_power = power_limit > 0
 
+            detail_text = (
+                f"GPU {gpu.index}:  "
+                f"Util {gpu.utilization_pct:.0f}%  ·  "
+                f"VRAM {gpu.mem_pct:.0f}%"
+                f" ({_format_mb(gpu.mem_used_mb)}/{_format_mb(gpu.mem_total_mb)})"
+            )
+            if has_power:
+                detail_text += f"  ·  Power {gpu.power_draw_w:.0f}W/{power_limit:.0f}W"
+
+            detail_widget = Static(detail_text, id=detail_id, classes="chart-detail")
+            util_chart = AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id=util_id)
+            mem_chart = AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id=mem_id)
+
+            row = Horizontal(classes="charts-row")
+            col_util = Vertical(classes="chart-col")
+            col_mem = Vertical(classes="chart-col")
+
+            container.mount(detail_widget)
+            container.mount(row)
+            row.mount(col_util)
+            row.mount(col_mem)
+            col_util.mount(util_chart)
+            col_mem.mount(mem_chart)
+
+            if has_power:
+                power_chart = AreaChart(
+                    chart_height=DEFAULT_CHART_HEIGHT,
+                    max_val=power_limit,
+                    id=power_id,
+                )
+                container.mount(power_chart)
+
+            self._gpu_initialized.add(gpu.index)
+
+    def _update_gpu_widgets(self, gpu) -> None:
+        """Update existing chart widgets for a GPU."""
+        util_id = f"gpu_{gpu.index}_util_chart"
+        mem_id = f"gpu_{gpu.index}_mem_chart"
+        power_id = f"gpu_{gpu.index}_power_chart"
+        detail_id = f"gpu_{gpu.index}_detail"
+
+        power_limit = self._gpu_power_limits.get(gpu.index, 0)
+        has_power = power_limit > 0
+
+        try:
+            self.query_one(f"#{util_id}", AreaChart).update_series([
+                (f"GPU{gpu.index} util", "cyan", self._gpu_util_history[gpu.index]),
+            ])
+        except Exception:
+            pass
+
+        try:
+            self.query_one(f"#{mem_id}", AreaChart).update_series([
+                (f"GPU{gpu.index} VRAM", "dark_orange", self._gpu_mem_history[gpu.index]),
+            ])
+        except Exception:
+            pass
+
+        if has_power:
             try:
-                # Update existing charts
-                self.query_one(f"#{util_id}", AreaChart).update_series([
-                    (f"GPU{gpu.index} util", "cyan", self._gpu_util_history[gpu.index]),
+                self.query_one(f"#{power_id}", AreaChart).update_series([
+                    (f"GPU{gpu.index} power", "bright_magenta", self._gpu_power_history[gpu.index]),
                 ])
-                self.query_one(f"#{mem_id}", AreaChart).update_series([
-                    (f"GPU{gpu.index} VRAM", "dark_orange", self._gpu_mem_history[gpu.index]),
-                ])
-                if has_power:
-                    try:
-                        self.query_one(f"#{power_id}", AreaChart).update_series([
-                            (f"GPU{gpu.index} power", "bright_magenta", self._gpu_power_history[gpu.index]),
-                        ])
-                    except Exception:
-                        pass
-
-                detail = self.query_one(f"#{detail_id}", Static)
-                detail_text = (
-                    f"GPU {gpu.index}:  "
-                    f"Util {gpu.utilization_pct:.0f}%  ·  "
-                    f"VRAM {gpu.mem_pct:.0f}%"
-                    f" ({_format_mb(gpu.mem_used_mb)}/{_format_mb(gpu.mem_total_mb)})"
-                )
-                if has_power:
-                    detail_text += f"  ·  Power {gpu.power_draw_w:.0f}W/{power_limit:.0f}W"
-                detail.update(detail_text)
-
             except Exception:
-                # Create new GPU charts
-                detail_text = (
-                    f"GPU {gpu.index}:  "
-                    f"Util {gpu.utilization_pct:.0f}%  ·  "
-                    f"VRAM {gpu.mem_pct:.0f}%"
-                    f" ({_format_mb(gpu.mem_used_mb)}/{_format_mb(gpu.mem_total_mb)})"
-                )
-                if has_power:
-                    detail_text += f"  ·  Power {gpu.power_draw_w:.0f}W/{power_limit:.0f}W"
+                pass
 
-                detail_widget = Static(detail_text, id=detail_id, classes="chart-detail")
-
-                util_chart = AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id=util_id)
-                mem_chart = AreaChart(chart_height=DEFAULT_CHART_HEIGHT, id=mem_id)
-
-                # Row 1: util + vram side by side
-                row1 = Horizontal(classes="charts-row")
-                col_util = Vertical(classes="chart-col")
-                col_mem = Vertical(classes="chart-col")
-
-                container.mount(detail_widget)
-                container.mount(row1)
-                row1.mount(col_util)
-                row1.mount(col_mem)
-                col_util.mount(util_chart)
-                col_mem.mount(mem_chart)
-
-                util_chart.update_series([
-                    (f"GPU{gpu.index} util", "cyan", self._gpu_util_history.get(gpu.index, deque())),
-                ])
-                mem_chart.update_series([
-                    (f"GPU{gpu.index} VRAM", "dark_orange", self._gpu_mem_history.get(gpu.index, deque())),
-                ])
-
-                # Row 2: power (full width, if available)
-                if has_power:
-                    power_chart = AreaChart(
-                        chart_height=DEFAULT_CHART_HEIGHT,
-                        max_val=power_limit,
-                        id=power_id,
-                    )
-                    container.mount(power_chart)
-                    power_chart.update_series([
-                        (f"GPU{gpu.index} power (W)", "bright_magenta", self._gpu_power_history.get(gpu.index, deque())),
-                    ])
+        try:
+            detail = self.query_one(f"#{detail_id}", Static)
+            detail_text = (
+                f"GPU {gpu.index}:  "
+                f"Util {gpu.utilization_pct:.0f}%  ·  "
+                f"VRAM {gpu.mem_pct:.0f}%"
+                f" ({_format_mb(gpu.mem_used_mb)}/{_format_mb(gpu.mem_total_mb)})"
+            )
+            if has_power:
+                detail_text += f"  ·  Power {gpu.power_draw_w:.0f}W/{power_limit:.0f}W"
+            detail.update(detail_text)
+        except Exception:
+            pass

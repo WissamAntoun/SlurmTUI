@@ -480,13 +480,9 @@ def extract_gpu_indices(job_dict: dict) -> Optional[List[int]]:
             return sorted(set(indices))
 
     # Try tres_alloc_str: "cpu=32,mem=64G,gres/gpu=4"
-    tres = job_dict.get("tres_alloc_str", "")
-    if isinstance(tres, str) and "gres/gpu=" in tres:
-        match = re.search(r"gres/gpu=(\d+)", tres)
-        if match:
-            count = int(match.group(1))
-            return list(range(count))
-
+    # NOTE: tres_alloc_str only gives the count, not the actual indices.
+    # We cannot guess which GPU indices were assigned, so return None
+    # to let nvidia-smi query all GPUs on the node.
     return None
 
 
