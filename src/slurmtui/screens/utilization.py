@@ -135,18 +135,18 @@ class UtilizationScreen(ModalScreen[None]):
     }
 
     #util_container {
-        padding: 1 4 1 1;
+        padding: 1 0 1 1;
     }
 
     .util-status {
-        margin: 0 0 1 0;
+        margin: 0 3 1 0;
         text-style: italic;
         color: $text-muted;
     }
 
     .chart-detail {
         height: 1;
-        margin: 0 0 0 2;
+        margin: 0 3 0 2;
         color: $text-muted;
     }
 
@@ -156,11 +156,16 @@ class UtilizationScreen(ModalScreen[None]):
 
     .charts-row {
         height: 14;
+        margin: 0 3 0 0;
     }
 
     .chart-col {
         width: 1fr;
         height: 14;
+    }
+
+    UtilChart {
+        margin: 0 3 0 0;
     }
     """
 
