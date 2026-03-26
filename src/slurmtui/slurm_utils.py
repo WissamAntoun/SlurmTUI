@@ -382,6 +382,7 @@ def get_resources(settings: SETTINGS) -> Dict[str, Dict]:
                 "gpus_per_node": 0,
                 "gpu_type": "",
                 "gpus_total": 0,
+                "gpus_used": 0,
                 "features": "",
                 "node_groups": [],
             }
@@ -413,6 +414,11 @@ def get_resources(settings: SETTINGS) -> Dict[str, Dict]:
             p["gpus_per_node"] = gpu_count
             p["gpu_type"] = gpu_type
             p["gpus_total"] += nodes_in_group * gpu_count
+
+        gres_used_str = entry.get("gres", {}).get("used", "")
+        _, gpus_used_count = parse_gres_count(gres_used_str)
+        if gpus_used_count > 0:
+            p["gpus_used"] += nodes_in_group * gpus_used_count
 
         # Capture features as a fallback when no GPU GRES is present
         features_total = entry.get("features", {}).get("total", "")

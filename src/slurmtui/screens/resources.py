@@ -138,14 +138,24 @@ class PartitionCard(Static, can_focus=True):
 
         # --- GPUs / Features ---
         if d["gpus_total"] > 0:
+            gpus_used = d.get("gpus_used", 0)
+            gpus_free = d["gpus_total"] - gpus_used
             if d["gpu_type"] == "UNK":
                 gpu_type_str = f"[dim]{d['features']}[/dim]"
             else:
                 gpu_type_str = f"[bright_magenta]{d['gpu_type']}[/bright_magenta]"
+            gpu_stats = _stat_items(
+                [
+                    ("used", gpus_used, "green"),
+                    ("free", gpus_free, "cyan"),
+                ]
+            )
             lines.append(
-                f"  [bold]GPUs [/bold]  {gpu_type_str}"
-                f"  ·  {d['gpus_per_node']}/node"
-                f"  ·  [bold]{d['gpus_total']}[/bold] total"
+                f"  [bold]GPUs [/bold]  "
+                f"{_make_bar(gpus_used, d['gpus_total'])}"
+                f"   {gpu_stats}  [dim]({d['gpus_total']} total"
+                f" · {gpu_type_str}"
+                f" · {d['gpus_per_node']}/node)[/dim]"
             )
         elif d.get("features"):
             lines.append(f"  [bold]Info [/bold]  [dim]{d['features']}[/dim]")
