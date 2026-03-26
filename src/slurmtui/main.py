@@ -15,6 +15,7 @@ from textual.screen import Screen
 from textual.timer import Timer
 from textual.widgets import Footer, Header
 
+from .monitor import extract_gpu_indices
 from .screens import (
     InfoScreen,
     LogPeekScreen,
@@ -26,7 +27,6 @@ from .screens import (
     get_confirm_screen,
 )
 from .screens.utils import ColumnManager
-from .monitor import extract_gpu_indices
 from .slurm_utils import (
     CommandNotFoundError,
     SlurmTUIReturn,
@@ -57,6 +57,8 @@ DEFAULT_COLUMNS = {
 
 class SlurmTUI(App[SlurmTUIReturn]):
     """A Textual UI for slurm jobs."""
+
+    ALLOW_SELECT = False
 
     DEFAULT_CSS = """
         DataTable {
@@ -607,7 +609,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
         node = str(selected_job.get("batch_host", selected_job.get("nodes", "")))
         if not node:
-            self.notify("No node information available for this job", severity="warning")
+            self.notify(
+                "No node information available for this job", severity="warning"
+            )
             return
 
         gpu_indices = extract_gpu_indices(selected_job)

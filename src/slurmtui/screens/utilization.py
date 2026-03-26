@@ -86,9 +86,7 @@ class UtilChart(PlotWidget):
         self.set_xlimits(-HISTORY_LENGTH * SAMPLE_INTERVAL, 0)
         self.set_xlabel("Time (s)")
 
-    def update_series(
-        self, series: list[tuple[str, str, deque[float]]]
-    ) -> None:
+    def update_series(self, series: list[tuple[str, str, deque[float]]]) -> None:
         """Update chart data. series: list of (label, color, data_deque)."""
         self._series_data = series
         self.clear()
@@ -101,9 +99,9 @@ class UtilChart(PlotWidget):
             # X-axis: time in seconds ago (negative = past, 0 = now)
             x = np.arange(-n * SAMPLE_INTERVAL, 0, SAMPLE_INTERVAL)
             if len(x) > len(values):
-                x = x[-len(values):]
+                x = x[-len(values) :]
             elif len(values) > len(x):
-                values = values[-len(x):]
+                values = values[-len(x) :]
             y = np.array(values, dtype=float)
             self.plot(
                 x=x,
@@ -325,9 +323,11 @@ class UtilizationScreen(ModalScreen[None]):
 
         try:
             cpu_chart = self.query_one("#cpu_chart", UtilChart)
-            cpu_chart.update_series([
-                ("CPU %", "cyan", self._cpu_history),
-            ])
+            cpu_chart.update_series(
+                [
+                    ("CPU %", "cyan", self._cpu_history),
+                ]
+            )
         except Exception:
             pass
 
@@ -344,9 +344,11 @@ class UtilizationScreen(ModalScreen[None]):
 
         try:
             mem_chart = self.query_one("#mem_chart", UtilChart)
-            mem_chart.update_series([
-                ("RAM %", "yellow", self._mem_history),
-            ])
+            mem_chart.update_series(
+                [
+                    ("RAM %", "yellow", self._mem_history),
+                ]
+            )
         except Exception:
             pass
 
@@ -427,24 +429,38 @@ class UtilizationScreen(ModalScreen[None]):
         has_power = power_limit > 0
 
         try:
-            self.query_one(f"#{util_id}", UtilChart).update_series([
-                (f"GPU{gpu.index} util", "cyan", self._gpu_util_history[gpu.index]),
-            ])
+            self.query_one(f"#{util_id}", UtilChart).update_series(
+                [
+                    (f"GPU{gpu.index} util", "cyan", self._gpu_util_history[gpu.index]),
+                ]
+            )
         except Exception:
             pass
 
         try:
-            self.query_one(f"#{mem_id}", UtilChart).update_series([
-                (f"GPU{gpu.index} VRAM", "yellow", self._gpu_mem_history[gpu.index]),
-            ])
+            self.query_one(f"#{mem_id}", UtilChart).update_series(
+                [
+                    (
+                        f"GPU{gpu.index} VRAM",
+                        "yellow",
+                        self._gpu_mem_history[gpu.index],
+                    ),
+                ]
+            )
         except Exception:
             pass
 
         if has_power:
             try:
-                self.query_one(f"#{power_id}", UtilChart).update_series([
-                    (f"GPU{gpu.index} power", "magenta", self._gpu_power_history[gpu.index]),
-                ])
+                self.query_one(f"#{power_id}", UtilChart).update_series(
+                    [
+                        (
+                            f"GPU{gpu.index} power",
+                            "magenta",
+                            self._gpu_power_history[gpu.index],
+                        ),
+                    ]
+                )
             except Exception:
                 pass
 
