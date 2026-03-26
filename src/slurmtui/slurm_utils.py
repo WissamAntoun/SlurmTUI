@@ -335,16 +335,19 @@ def get_job_resources(job_dict):
 
 
 def parse_gres_count(gres_str: str) -> Tuple[str, int]:
-    """Parse GRES string like 'gpu:8(S:0-1)' or 'gpu:h100:4(S:0-1)'.
+    """Parse GRES string like 'gpu:4(S:0-1)', 'gpu:h100:4(S:0-1)',
+    or 'gpu:(null):4(IDX:0-3)'.
 
     Returns (gpu_type, count_per_node).
     """
     if not gres_str:
         return ("", 0)
-    match = re.match(r"gpu:(?:(\w+):)?(\d+)", gres_str)
+    match = re.match(
+        r"gpu:(?:(?P<type>[a-zA-Z_]\w*)|\(null\))?:?(?P<count>\d+)", gres_str
+    )
     if match:
-        gpu_type = match.group(1) or "UNK"
-        count = int(match.group(2))
+        gpu_type = match.group("type") or "UNK"
+        count = int(match.group("count"))
         return (gpu_type, count)
     return ("", 0)
 
