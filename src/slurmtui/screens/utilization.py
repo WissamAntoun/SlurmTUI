@@ -6,7 +6,7 @@ import numpy as np
 from collections import deque
 from typing import Any, List, Optional
 
-from textual import on, work
+from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -14,6 +14,12 @@ from textual.events import MouseScrollDown, MouseScrollUp
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Header, Static
 from textual_plot import HiResMode, PlotWidget
+
+# PlotWidget's zoom_in/zoom_out handlers call event.stop() unconditionally,
+# which prevents mouse wheel scrolling from reaching the VerticalScroll parent.
+# Remove those handlers so scroll events bubble normally.
+PlotWidget._decorated_handlers.pop(MouseScrollDown, None)
+PlotWidget._decorated_handlers.pop(MouseScrollUp, None)
 
 from ..monitor import (
     MonitorCapabilities,
@@ -59,26 +65,6 @@ class UtilChart(PlotWidget):
         super().__init__(allow_pan_and_zoom=False, **kwargs)
         self.max_val = max_val
         self._series_data: list[tuple[str, str, deque[float]]] = []
-
-    @on(MouseScrollDown)
-    def _forward_scroll_down(self, event: MouseScrollDown) -> None:
-        # PlotWidget's @on handler calls event.stop(), killing bubbling.
-        # Manually forward scroll to the VerticalScroll parent.
-        try:
-            self.screen.query_one("#util_container", VerticalScroll).scroll_down(
-                animate=False
-            )
-        except Exception:
-            pass
-
-    @on(MouseScrollUp)
-    def _forward_scroll_up(self, event: MouseScrollUp) -> None:
-        try:
-            self.screen.query_one("#util_container", VerticalScroll).scroll_up(
-                animate=False
-            )
-        except Exception:
-            pass
 
     def on_mount(self) -> None:
         # Configure fixed axes
