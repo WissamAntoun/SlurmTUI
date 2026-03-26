@@ -72,14 +72,14 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     BINDINGS = [
         # fmt: off
-        Binding("l", "logs_out_tail", "Logs (STDOUT)", key_display="L"),
-        Binding("e", "logs_err_tail", "Logs (STDERR)", key_display="E"),
+        Binding("l", "logs_out_tail", "Logs", key_display="L"),
+        Binding("e", "logs_err_tail", "STDERR", key_display="E"),
         Binding("ctrl+r", "force_refresh", "Force Refresh", key_display="Ctrl+R", show=False),
         Binding("ctrl+l", "logs_out_less", "Less of Logs (STDOUT)", key_display="Ctrl+L", show=False),
         Binding("ctrl+e", "logs_err_less", "Less of Logs (STDERR)", key_display="Ctrl+E", show=False),
-        Binding("space", "peek_stdout", "Peek STDOUT", key_display="Space"),
+        Binding("space", "peek_stdout", "Peek", key_display="Space", ),
         Binding("ctrl+space", "peek_stderr", "Peek STDERR", key_display="Ctrl+Space", show=False),
-        Binding("c", "connect", "Connect to Node (ssh)", key_display="C"),
+        Binding("c", "connect", "Connect", key_display="C"),
         Binding("i", "info", "Info", key_display="I"),
         Binding("d", "delete", "Delete", key_display="D"),
         Binding("o", "old_jobs", "Old Jobs", key_display="O"),

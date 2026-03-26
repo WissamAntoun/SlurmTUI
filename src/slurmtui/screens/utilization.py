@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import numpy as np
 from collections import deque
 from typing import Any, List, Optional
 
+import numpy as np
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -13,7 +13,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.events import MouseScrollDown, MouseScrollUp
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Header, Static
-from textual_plot import HiResMode, PlotWidget
+from textual_plot import HiResMode, LegendLocation, PlotWidget
 
 from ..monitor import (
     MonitorCapabilities,
@@ -113,7 +113,7 @@ class UtilChart(PlotWidget):
 
         self.set_ylimits(0, self.max_val)
         self.set_xlimits(-HISTORY_LENGTH * SAMPLE_INTERVAL, 0)
-        self.show_legend()
+        self.show_legend(location=LegendLocation.TOPLEFT)
 
 
 # ── Utilization screen ────────────────────────────────────────────
