@@ -135,8 +135,7 @@ class UtilizationScreen(ModalScreen[None]):
     }
 
     #util_container {
-        padding: 1 2;
-        scrollbar-gutter: stable;
+        padding: 1 4 1 1;
     }
 
     .util-status {
