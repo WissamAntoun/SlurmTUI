@@ -66,6 +66,7 @@ The main view auto-refreshes every few seconds, showing your jobs with colored s
 | `D` | Delete a job (with confirmation, works with array jobs) |
 | `I` | View detailed job info |
 | `O` | Toggle old jobs history (completed/failed via `sacct`) |
+| `U` | Live utilization monitor (CPU, RAM, GPU) |
 | `R` | Open hardware resources view |
 
 The log viewer can be configured to use `tail -f`, `less`, or any command you want.
@@ -73,6 +74,10 @@ The log viewer can be configured to use `tail -f`, `less`, or any command you wa
 ### Old Jobs History
 
 View completed/failed job history via `sacct`. Press `O` to toggle. For more info see the linked [blog post](https://wiss.dev/posts/software/slurmtui/#old-jobs-history)
+
+### Live Utilization Monitor
+
+Press `U` on a job or node to open a live-updating utilization screen with braille-resolution charts for CPU, RAM, and GPU (utilization, VRAM, power draw). Supports job-scoped monitoring via cgroup v2 and node-level fallback via `/proc`. Requires SSH access to compute nodes.
 
 ### Hardware Resources View
 
