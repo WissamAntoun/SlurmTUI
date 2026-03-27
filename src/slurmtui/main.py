@@ -57,6 +57,7 @@ DEFAULT_COLUMNS = {
 
 class SlurmTUI(App[SlurmTUIReturn]):
     """A Textual UI for slurm jobs."""
+    ALLOW_SELECT = False
 
     ALLOW_SELECT = False
 
@@ -96,6 +97,13 @@ class SlurmTUI(App[SlurmTUIReturn]):
 
     def _effective_update_interval(self) -> int:
         return settings.UPDATE_INTERVAL * (5 if settings.CHECK_ALL_JOBS else 1)
+
+    def _get_selected_job(self, job_table: SortableDataTable) -> Dict[str, Any] | None:
+        """Get the selected job using the row key, which is stable across sorts."""
+        coord = job_table.cursor_coordinate
+        cell_key = job_table.coordinate_to_cell_key(coord)
+        row_key = cell_key.row_key.value
+        return self.running_jobs_dict.get(int(row_key))
 
     def _display_job_table(self) -> None:
         try:
@@ -301,9 +309,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
         if self._check_no_jobs():
             return
 
-        selected_job = list(self.running_jobs_dict.values())[
-            job_table.cursor_coordinate.row
-        ]
+        selected_job = self._get_selected_job(job_table)
+        if selected_job is None:
+            return
 
         if check_for_state(selected_job["job_state"], "PENDING"):
             self.notify(
@@ -379,9 +387,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
         if self._check_no_jobs():
             return
 
-        selected_job = list(self.running_jobs_dict.values())[
-            job_table.cursor_coordinate.row
-        ]
+        selected_job = self._get_selected_job(job_table)
+        if selected_job is None:
+            return
 
         if check_for_state(selected_job["job_state"], "PENDING"):
             self.notify(
@@ -422,9 +430,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
         except NoMatches:
             job_table = self.job_table
 
-        selected_job = list(self.running_jobs_dict.values())[
-            job_table.cursor_coordinate.row
-        ]
+        selected_job = self._get_selected_job(job_table)
+        if selected_job is None:
+            return
 
         if check_for_state(selected_job["job_state"], "PENDING"):
             self.notify(
@@ -485,9 +493,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
         except NoMatches:
             job_table = self.job_table
 
-        selected_job = list(self.running_jobs_dict.values())[
-            job_table.cursor_coordinate.row
-        ]
+        selected_job = self._get_selected_job(job_table)
+        if selected_job is None:
+            return
 
         if selected_job["job_id"] in self.jobs_to_be_deleted:
             self.notify(
@@ -552,9 +560,9 @@ class SlurmTUI(App[SlurmTUIReturn]):
         except NoMatches:
             job_table = self.job_table
 
-        selected_job = list(self.running_jobs_dict.values())[
-            job_table.cursor_coordinate.row
-        ]
+        selected_job = self._get_selected_job(job_table)
+        if selected_job is None:
+            return
 
         def print_cli(string_to_print: str) -> None:
             """Print the string to the CLI."""

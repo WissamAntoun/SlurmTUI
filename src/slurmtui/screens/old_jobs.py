@@ -110,6 +110,13 @@ class OldJobsScreen(ModalScreen):
 
     job_table = None
 
+    def _get_selected_job(self, job_table: SortableDataTable) -> Dict[str, Any] | None:
+        """Get the selected job using the row key, which is stable across sorts."""
+        coord = job_table.cursor_coordinate
+        cell_key = job_table.coordinate_to_cell_key(coord)
+        row_key = cell_key.row_key.value
+        return self.old_jobs.get(int(row_key))
+
     def __init__(self, settings: SETTINGS, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.app.title = "SlurmTUI Old Jobs"
@@ -214,7 +221,9 @@ class OldJobsScreen(ModalScreen):
         if self._check_no_jobs():
             return
 
-        selected_job = list(self.old_jobs.values())[job_table.cursor_coordinate.row]
+        selected_job = self._get_selected_job(job_table)
+        if selected_job is None:
+            return
 
         if check_for_state(selected_job["state"]["current"], "PENDING"):
             self.notify(
@@ -306,7 +315,9 @@ class OldJobsScreen(ModalScreen):
         if self._check_no_jobs():
             return
 
-        selected_job = list(self.old_jobs.values())[job_table.cursor_coordinate.row]
+        selected_job = self._get_selected_job(job_table)
+        if selected_job is None:
+            return
 
         if check_for_state(selected_job["state"]["current"], "PENDING"):
             self.notify(
@@ -365,7 +376,9 @@ class OldJobsScreen(ModalScreen):
         except NoMatches:
             job_table = self.job_table
 
-        selected_job = list(self.old_jobs.values())[job_table.cursor_coordinate.row]
+        selected_job = self._get_selected_job(job_table)
+        if selected_job is None:
+            return
 
         def print_cli(string_to_print: str) -> None:
             """Print the string to the CLI."""
