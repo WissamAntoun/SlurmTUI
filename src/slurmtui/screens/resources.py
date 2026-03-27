@@ -367,11 +367,9 @@ class PartitionDetailScreen(ModalScreen):
         if not self._node_names:
             return
 
-        row_idx = table.cursor_coordinate.row
-        if row_idx >= len(self._node_names):
-            return
-
-        node_name = self._node_names[row_idx]
+        coord = table.cursor_coordinate
+        cell_key = table.coordinate_to_cell_key(coord)
+        node_name = cell_key.row_key.value
         jobs_on_node = self.node_to_jobs.get(node_name, [])
         if not jobs_on_node:
             self.notify(f"No running jobs on {node_name}", severity="warning")
