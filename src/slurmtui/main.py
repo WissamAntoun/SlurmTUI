@@ -55,6 +55,7 @@ DEFAULT_COLUMNS = {
 
 class SlurmTUI(App[SlurmTUIReturn]):
     """A Textual UI for slurm jobs."""
+    ALLOW_SELECT = False
 
     DEFAULT_CSS = """
         DataTable {
