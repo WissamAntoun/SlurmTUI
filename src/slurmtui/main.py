@@ -59,8 +59,6 @@ class SlurmTUI(App[SlurmTUIReturn]):
     """A Textual UI for slurm jobs."""
     ALLOW_SELECT = False
 
-    ALLOW_SELECT = False
-
     DEFAULT_CSS = """
         DataTable {
             scrollbar-gutter: stable;
